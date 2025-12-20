@@ -1,0 +1,20 @@
+{
+  "name": "mchp-backend-api",
+  "version": "1.0.0",
+  "description": "Backend API proxy for MCHP trading system to bypass CORS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["api", "proxy", "pump.fun", "trading"],
+  "author": "MCHP",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
