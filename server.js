@@ -435,3 +435,22 @@ app.listen(PORT, () => {
   console.log('  ✅ CoinGecko');
   console.log('='.repeat(50));
 });
+
+// Add to your existing server.js/index.js:
+
+app.post('/api/jupiter/quote', async (req, res) => {
+  const response = await fetch(
+    'https://quote-api.jup.ag/v6/quote?' + 
+    new URLSearchParams(req.body)
+  );
+  res.json(await response.json());
+});
+
+app.post('/api/jupiter/swap', async (req, res) => {
+  const response = await fetch('https://quote-api.jup.ag/v6/swap', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req.body)
+  });
+  res.json(await response.json());
+});
