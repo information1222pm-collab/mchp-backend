@@ -278,32 +278,3 @@ app.listen(PORT, () => {
   console.log('================================');
   console.log('');
 });
-```
-
----
-
-### **Step 4: Commit Changes**
-```
-1. Scroll to bottom
-2. Add commit message: "Add Birdeye API support"
-3. Click "Commit changes"
-4. Confirm
-```
-
----
-
-### **Step 5: Wait & Test**
-```
-1. Wait 60 seconds for Render to deploy
-2. Test: https://mchp-backend.onrender.com/api/coins
-3. Should work! ✅
-```
-
----
-
-## 📊 **AFTER DEPLOYMENT YOU'LL SEE:**
-
-**Logs:**
-```
-🐦 Trying Birdeye API...
-✅ Birdeye: 50 tokens
