@@ -25,25 +25,66 @@ app.get('/', (req, res) => {
   });
 });
 
-// ===== PUMPFUN ENDPOINT WITH SCRAPERAPI PROXY =====
+// ===== TOKEN LISTING WITH BIRDEYE + PUMPFUN FALLBACK =====
 app.get('/api/coins', async (req, res) => {
   try {
-    console.log('📊 Fetching PumpFun tokens...');
+    console.log('📊 Fetching tokens...');
     
+    // Try Birdeye first (most reliable, has PumpFun data)
+    const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY;
+    
+    if (BIRDEYE_API_KEY) {
+      try {
+        console.log('🐦 Trying Birdeye API...');
+        const birdeyeResponse = await fetch(
+          'https://public-api.birdeye.so/defi/tokenlist?sort_by=creation_time&sort_type=desc&offset=0&limit=50',
+          {
+            headers: {
+              'X-API-KEY': BIRDEYE_API_KEY,
+              'Accept': 'application/json'
+            }
+          }
+        );
+        
+        if (birdeyeResponse.ok) {
+          const birdeyeData = await birdeyeResponse.json();
+          
+          if (birdeyeData.success && birdeyeData.data) {
+            const tokens = birdeyeData.data.tokens.map(t => ({
+              mint: t.address,
+              name: t.name,
+              symbol: t.symbol,
+              price: t.price || 0,
+              marketCap: t.mc || 0,
+              liquidity: t.liquidity || 0,
+              volume24h: t.v24hUSD || 0,
+              priceChange24h: t.priceChange24h || 0,
+              created_timestamp: t.createdTime || Date.now(),
+              source: 'birdeye'
+            }));
+            
+            console.log(`✅ Birdeye: ${tokens.length} tokens`);
+            return res.json(tokens);
+          }
+        }
+      } catch (birdeyeError) {
+        console.log('⚠️ Birdeye failed:', birdeyeError.message);
+      }
+    }
+    
+    // Fallback to PumpFun with ScraperAPI
+    console.log('📊 Falling back to PumpFun...');
     const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false';
     
-    // Use ScraperAPI if key is set (prevents rate limits and blocks)
     const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
     
     let fetchUrl;
     if (SCRAPER_API_KEY) {
-      // Route through ScraperAPI proxy (paid service - prevents 530 errors)
       fetchUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(pumpFunUrl)}`;
-      console.log('🔒 Using ScraperAPI proxy for reliability');
+      console.log('🔒 Using ScraperAPI proxy for PumpFun');
     } else {
-      // Direct request (may hit 530 errors)
       fetchUrl = pumpFunUrl;
-      console.log('⚠️ Direct request - may encounter rate limits');
+      console.log('⚠️ Direct PumpFun request');
     }
     
     const response = await fetch(fetchUrl, {
@@ -58,15 +99,15 @@ app.get('/api/coins', async (req, res) => {
     }
     
     const data = await response.json();
-    console.log(`✅ Fetched ${data.length} PumpFun tokens`);
+    console.log(`✅ PumpFun: ${data.length} tokens`);
     
     res.json(data);
     
   } catch (error) {
-    console.error('❌ PumpFun fetch error:', error);
+    console.error('❌ Token fetch error:', error);
     res.status(500).json({ 
       error: error.message,
-      suggestion: 'Add SCRAPER_API_KEY environment variable for better reliability'
+      suggestion: 'Add BIRDEYE_API_KEY for better reliability. Get free key at: https://docs.birdeye.so'
     });
   }
 });
@@ -237,3 +278,32 @@ app.listen(PORT, () => {
   console.log('================================');
   console.log('');
 });
+```
+
+---
+
+### **Step 4: Commit Changes**
+```
+1. Scroll to bottom
+2. Add commit message: "Add Birdeye API support"
+3. Click "Commit changes"
+4. Confirm
+```
+
+---
+
+### **Step 5: Wait & Test**
+```
+1. Wait 60 seconds for Render to deploy
+2. Test: https://mchp-backend.onrender.com/api/coins
+3. Should work! ✅
+```
+
+---
+
+## 📊 **AFTER DEPLOYMENT YOU'LL SEE:**
+
+**Logs:**
+```
+🐦 Trying Birdeye API...
+✅ Birdeye: 50 tokens
