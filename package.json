@@ -1,18 +1,22 @@
 {
-  "name": "mchp-backend-api",
+  "name": "mchp-backend",
   "version": "1.0.0",
-  "description": "Backend API proxy for MCHP trading system to bypass CORS",
+  "description": "MCHP Trading Backend API with Jupiter Proxy",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "keywords": ["api", "proxy", "pump.fun", "trading"],
+  "keywords": ["mchp", "trading", "solana", "jupiter"],
   "author": "MCHP",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=14.0.0"
