@@ -38,8 +38,9 @@ app.get('/api/coins', async (req, res) => {
         console.log('🐦 Trying Birdeye API...');
         console.log('🔑 Key length:', BIRDEYE_API_KEY.length);
         
+        // Use simpler endpoint - just get token list without complex sorting
         const birdeyeResponse = await fetch(
-          'https://public-api.birdeye.so/defi/tokenlist?sort_by=creation_time&sort_type=desc&offset=0&limit=50',
+          'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=50',
           {
             headers: {
               'X-API-KEY': BIRDEYE_API_KEY,
@@ -55,9 +56,9 @@ app.get('/api/coins', async (req, res) => {
           console.log('❌ Birdeye error:', birdeyeResponse.status, errorText);
         } else {
           const birdeyeData = await birdeyeResponse.json();
-          console.log('📊 Birdeye response:', JSON.stringify(birdeyeData).slice(0, 200));
+          console.log('📊 Birdeye response keys:', Object.keys(birdeyeData));
           
-          if (birdeyeData.success && birdeyeData.data) {
+          if (birdeyeData.success && birdeyeData.data && birdeyeData.data.tokens) {
             const tokens = birdeyeData.data.tokens.map(t => ({
               mint: t.address,
               name: t.name,
@@ -67,19 +68,18 @@ app.get('/api/coins', async (req, res) => {
               liquidity: t.liquidity || 0,
               volume24h: t.v24hUSD || 0,
               priceChange24h: t.priceChange24h || 0,
-              created_timestamp: t.createdTime || Date.now(),
+              created_timestamp: Date.now(), // Birdeye doesn't have creation time
               source: 'birdeye'
             }));
             
             console.log(`✅ Birdeye: ${tokens.length} tokens`);
             return res.json(tokens);
           } else {
-            console.log('⚠️ Birdeye response missing success/data');
+            console.log('⚠️ Birdeye response structure:', JSON.stringify(birdeyeData).slice(0, 500));
           }
         }
       } catch (birdeyeError) {
         console.log('❌ Birdeye exception:', birdeyeError.message);
-        console.log('❌ Birdeye stack:', birdeyeError.stack);
       }
     } else {
       console.log('⚠️ No BIRDEYE_API_KEY found');
