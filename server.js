@@ -25,23 +25,49 @@ app.get('/', (req, res) => {
   });
 });
 
-// ===== EXISTING ENDPOINT: Get recent tokens =====
+// ===== PUMPFUN ENDPOINT WITH SCRAPERAPI PROXY =====
 app.get('/api/coins', async (req, res) => {
   try {
-    // Fetch from PumpFun API
-    const response = await fetch('https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false');
+    console.log('📊 Fetching PumpFun tokens...');
+    
+    const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false';
+    
+    // Use ScraperAPI if key is set (prevents rate limits and blocks)
+    const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
+    
+    let fetchUrl;
+    if (SCRAPER_API_KEY) {
+      // Route through ScraperAPI proxy (paid service - prevents 530 errors)
+      fetchUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(pumpFunUrl)}`;
+      console.log('🔒 Using ScraperAPI proxy for reliability');
+    } else {
+      // Direct request (may hit 530 errors)
+      fetchUrl = pumpFunUrl;
+      console.log('⚠️ Direct request - may encounter rate limits');
+    }
+    
+    const response = await fetch(fetchUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`PumpFun API error: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log(`✅ Fetched ${data.length} PumpFun tokens`);
     
     res.json(data);
     
   } catch (error) {
-    console.error('Coins fetch error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ PumpFun fetch error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      suggestion: 'Add SCRAPER_API_KEY environment variable for better reliability'
+    });
   }
 });
 
