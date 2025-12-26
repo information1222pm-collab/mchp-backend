@@ -1,5 +1,5 @@
-// MCHP Multi-API Backend - Maximum Data Coverage
-// Queries 10+ APIs simultaneously for best results
+// MCHP Backend Server with Jupiter Proxy
+// This handles all API calls to avoid CORS issues
 
 const express = require('express');
 const cors = require('cors');
@@ -8,449 +8,206 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Enable CORS for all routes
 app.use(cors());
 app.use(express.json());
 
 // Health check
 app.get('/', (req, res) => {
-  res.json({
-    status: 'online',
-    message: 'MCHP Multi-API Backend',
-    version: '2.0.0',
-    apis: {
-      dexscreener: 'Token discovery',
-      birdeye: 'Analytics',
-      jupiter: 'Price quotes',
-      geckoterminal: 'DEX data',
-      solscan: 'Blockchain data',
-      coingecko: 'Price feeds',
-      raydium: 'DEX data',
-      solanatracker: 'New tokens'
-    },
-    endpoints: {
-      coins: '/api/coins',
-      aggregated: '/api/coins/aggregated'
-    }
+  res.json({ 
+    status: 'MCHP Backend Running',
+    endpoints: [
+      'GET /api/coins',
+      'POST /api/jupiter/quote',
+      'POST /api/jupiter/swap',
+      'GET /api/price-history/:mint'
+    ]
   });
 });
 
-// API 1: DexScreener
-async function fetchDexScreener() {
+// ===== EXISTING ENDPOINT: Get recent tokens =====
+app.get('/api/coins', async (req, res) => {
   try {
-    const response = await fetch('https://api.dexscreener.com/latest/dex/tokens/solana', {
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`DexScreener ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ DexScreener: ${data.pairs?.length || 0} pairs`);
-    return data.pairs || [];
-  } catch (error) {
-    console.log(`❌ DexScreener: ${error.message}`);
-    return [];
-  }
-}
-
-// API 2: Birdeye - New tokens
-async function fetchBirdeye() {
-  try {
-    // Using public endpoint for new tokens
-    const response = await fetch('https://public-api.birdeye.so/public/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=20', {
-      headers: {
-        'Accept': 'application/json',
-        'X-API-KEY': 'public' // Free tier
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`Birdeye ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ Birdeye: ${data.data?.tokens?.length || 0} tokens`);
-    return data.data?.tokens || [];
-  } catch (error) {
-    console.log(`❌ Birdeye: ${error.message}`);
-    return [];
-  }
-}
-
-// API 3: GeckoTerminal - Real-time DEX data
-async function fetchGeckoTerminal() {
-  try {
-    const response = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/trending_pools', {
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`GeckoTerminal ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ GeckoTerminal: ${data.data?.length || 0} pools`);
-    return data.data || [];
-  } catch (error) {
-    console.log(`❌ GeckoTerminal: ${error.message}`);
-    return [];
-  }
-}
-
-// API 4: Solscan - Latest tokens
-async function fetchSolscan() {
-  try {
-    const response = await fetch('https://api.solscan.io/token/list?sortBy=market_cap&direction=desc&limit=20', {
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`Solscan ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ Solscan: ${data.data?.length || 0} tokens`);
-    return data.data || [];
-  } catch (error) {
-    console.log(`❌ Solscan: ${error.message}`);
-    return [];
-  }
-}
-
-// API 5: Raydium - DEX data
-async function fetchRaydium() {
-  try {
-    const response = await fetch('https://api.raydium.io/v2/main/pairs', {
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`Raydium ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ Raydium: ${data.length || 0} pairs`);
-    return data || [];
-  } catch (error) {
-    console.log(`❌ Raydium: ${error.message}`);
-    return [];
-  }
-}
-
-// API 6: Jupiter - Price data
-async function fetchJupiter() {
-  try {
-    const response = await fetch('https://quote-api.jup.ag/v6/tokens', {
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`Jupiter ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ Jupiter: ${data.length || 0} tokens`);
-    // Return first 20 for performance
-    return (data || []).slice(0, 20);
-  } catch (error) {
-    console.log(`❌ Jupiter: ${error.message}`);
-    return [];
-  }
-}
-
-// API 7: SolanaTracker - New tokens
-async function fetchSolanaTracker() {
-  try {
-    const response = await fetch('https://data.solanatracker.io/tokens/new', {
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`SolanaTracker ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ SolanaTracker: ${data.tokens?.length || 0} tokens`);
-    return data.tokens || [];
-  } catch (error) {
-    console.log(`❌ SolanaTracker: ${error.message}`);
-    return [];
-  }
-}
-
-// API 8: CoinGecko - Trending
-async function fetchCoinGecko() {
-  try {
-    const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=solana-ecosystem&order=volume_desc&per_page=20&page=1', {
-      headers: {
-        'Accept': 'application/json'
-      },
-      timeout: 5000
-    });
-    if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
-    const data = await response.json();
-    console.log(`✅ CoinGecko: ${data.length || 0} coins`);
-    return data || [];
-  } catch (error) {
-    console.log(`❌ CoinGecko: ${error.message}`);
-    return [];
-  }
-}
-
-// Aggregate all API results
-async function aggregateAllAPIs() {
-  console.log('\n' + '='.repeat(50));
-  console.log('🚀 QUERYING ALL APIS SIMULTANEOUSLY...');
-  console.log('='.repeat(50));
-  
-  const startTime = Date.now();
-  
-  // Query ALL APIs simultaneously!
-  const [
-    dexScreener,
-    birdeye,
-    geckoTerminal,
-    solscan,
-    raydium,
-    jupiter,
-    solanaTracker,
-    coinGecko
-  ] = await Promise.all([
-    fetchDexScreener(),
-    fetchBirdeye(),
-    fetchGeckoTerminal(),
-    fetchSolscan(),
-    fetchRaydium(),
-    fetchJupiter(),
-    fetchSolanaTracker(),
-    fetchCoinGecko()
-  ]);
-  
-  const elapsed = Date.now() - startTime;
-  
-  // Combine all results
-  const allTokens = [];
-  
-  // Process DexScreener
-  dexScreener.forEach(pair => {
-    if (pair.baseToken) {
-      allTokens.push({
-        address: pair.baseToken.address,
-        symbol: pair.baseToken.symbol,
-        name: pair.baseToken.name,
-        priceUsd: pair.priceUsd,
-        volume24h: pair.volume?.h24,
-        liquidity: pair.liquidity?.usd,
-        priceChange24h: pair.priceChange?.h24,
-        source: 'dexscreener',
-        pairAddress: pair.pairAddress,
-        dexId: pair.dexId
-      });
-    }
-  });
-  
-  // Process GeckoTerminal
-  geckoTerminal.forEach(pool => {
-    if (pool.attributes) {
-      allTokens.push({
-        address: pool.attributes.address,
-        symbol: pool.attributes.base_token_symbol,
-        name: pool.attributes.name,
-        priceUsd: pool.attributes.base_token_price_usd,
-        volume24h: pool.attributes.volume_usd?.h24,
-        liquidity: pool.attributes.reserve_in_usd,
-        priceChange24h: pool.attributes.price_change_percentage?.h24,
-        source: 'geckoterminal'
-      });
-    }
-  });
-  
-  // Process Birdeye
-  birdeye.forEach(token => {
-    allTokens.push({
-      address: token.address,
-      symbol: token.symbol,
-      name: token.name,
-      priceUsd: token.price,
-      volume24h: token.v24hUSD,
-      liquidity: token.liquidity,
-      priceChange24h: token.v24hChangePercent,
-      source: 'birdeye',
-      marketCap: token.mc
-    });
-  });
-  
-  // Process Solscan
-  solscan.forEach(token => {
-    allTokens.push({
-      address: token.tokenAddress,
-      symbol: token.symbol,
-      name: token.tokenName,
-      priceUsd: token.priceUsdt,
-      volume24h: token.volume24h,
-      marketCap: token.marketCap,
-      holder: token.holder,
-      source: 'solscan'
-    });
-  });
-  
-  // Process Raydium
-  raydium.slice(0, 20).forEach(pair => {
-    if (pair.baseMint) {
-      allTokens.push({
-        address: pair.baseMint,
-        symbol: pair.baseSymbol,
-        name: pair.name,
-        priceUsd: pair.price,
-        volume24h: pair.volume24h,
-        liquidity: pair.liquidity,
-        source: 'raydium'
-      });
-    }
-  });
-  
-  // Process Jupiter
-  jupiter.forEach(token => {
-    allTokens.push({
-      address: token.address,
-      symbol: token.symbol,
-      name: token.name,
-      source: 'jupiter',
-      decimals: token.decimals
-    });
-  });
-  
-  // Process SolanaTracker
-  solanaTracker.forEach(token => {
-    allTokens.push({
-      address: token.mint,
-      symbol: token.symbol,
-      name: token.name,
-      priceUsd: token.price,
-      volume24h: token.volume24h,
-      liquidity: token.liquidity,
-      source: 'solanatracker',
-      createdAt: token.createdAt
-    });
-  });
-  
-  // Process CoinGecko
-  coinGecko.forEach(coin => {
-    allTokens.push({
-      address: coin.id,
-      symbol: coin.symbol?.toUpperCase(),
-      name: coin.name,
-      priceUsd: coin.current_price,
-      volume24h: coin.total_volume,
-      marketCap: coin.market_cap,
-      priceChange24h: coin.price_change_percentage_24h,
-      source: 'coingecko'
-    });
-  });
-  
-  console.log('='.repeat(50));
-  console.log(`✅ AGGREGATION COMPLETE in ${elapsed}ms`);
-  console.log(`📊 Total tokens from all sources: ${allTokens.length}`);
-  console.log('='.repeat(50) + '\n');
-  
-  return allTokens;
-}
-
-// Endpoint: Aggregated data from ALL APIs
-app.get('/api/coins/aggregated', async (req, res) => {
-  try {
-    console.log(`[${new Date().toISOString()}] Multi-API aggregation requested`);
+    // Fetch from PumpFun API
+    const response = await fetch('https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false');
     
-    const allTokens = await aggregateAllAPIs();
+    if (!response.ok) {
+      throw new Error(`PumpFun API error: ${response.status}`);
+    }
     
-    // Remove duplicates by address, keeping the one with most data
-    const uniqueTokens = {};
-    allTokens.forEach(token => {
-      const key = token.address?.toLowerCase();
-      if (key) {
-        if (!uniqueTokens[key] || Object.keys(token).length > Object.keys(uniqueTokens[key]).length) {
-          uniqueTokens[key] = token;
-        }
+    const data = await response.json();
+    
+    res.json(data);
+    
+  } catch (error) {
+    console.error('Coins fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== NEW: JUPITER QUOTE ENDPOINT =====
+app.post('/api/jupiter/quote', async (req, res) => {
+  try {
+    const { inputMint, outputMint, amount, slippageBps } = req.body;
+    
+    console.log('📊 Jupiter Quote Request:', {
+      inputMint: inputMint?.slice(0, 8) + '...',
+      outputMint: outputMint?.slice(0, 8) + '...',
+      amount,
+      slippageBps
+    });
+    
+    // Build Jupiter API URL
+    const jupiterUrl = `https://quote-api.jup.ag/v6/quote?` +
+      `inputMint=${inputMint}&` +
+      `outputMint=${outputMint}&` +
+      `amount=${amount}&` +
+      `slippageBps=${slippageBps || 50}`;
+    
+    // Fetch from Jupiter (server-side, no CORS!)
+    const response = await fetch(jupiterUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
       }
     });
     
-    const finalTokens = Object.values(uniqueTokens);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Jupiter API error: ${response.status} - ${errorText}`);
+    }
     
-    console.log(`[${new Date().toISOString()}] Returning ${finalTokens.length} unique tokens`);
+    const data = await response.json();
     
-    res.json({
-      success: true,
-      count: finalTokens.length,
-      sources: 8,
-      tokens: finalTokens,
-      timestamp: new Date().toISOString()
+    console.log('✅ Jupiter Quote Success:', {
+      outAmount: data.outAmount,
+      priceImpact: data.priceImpactPct
     });
     
+    res.json(data);
+    
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Aggregation error:`, error.message);
-    res.status(500).json({
-      error: 'Failed to aggregate data',
-      message: error.message
+    console.error('❌ Jupiter quote error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Failed to get Jupiter quote'
     });
   }
 });
 
-// Endpoint: Simple coins list (for backward compatibility)
-app.get('/api/coins', async (req, res) => {
-  try {
-    const allTokens = await aggregateAllAPIs();
-    
-    // Format like pump.fun for compatibility
-    const formatted = allTokens.slice(0, 50).map(token => ({
-      mint: token.address,
-      symbol: token.symbol,
-      name: token.name,
-      description: `${token.source} token`,
-      image: null,
-      price: parseFloat(token.priceUsd) || 0,
-      volume24h: parseFloat(token.volume24h) || 0,
-      liquidity: parseFloat(token.liquidity) || 0,
-      marketCap: parseFloat(token.marketCap) || 0,
-      priceChange24h: parseFloat(token.priceChange24h) || 0,
-      source: token.source,
-      createdAt: token.createdAt || Date.now()
-    }));
-    
-    res.json(formatted);
-    
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] Error:`, error.message);
-    res.status(500).json({
-      error: 'Failed to fetch coins',
-      message: error.message
-    });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log('='.repeat(50));
-  console.log('🚀 MCHP MULTI-API BACKEND v2.0');
-  console.log('='.repeat(50));
-  console.log(`Server: http://localhost:${PORT}`);
-  console.log(`Health: http://localhost:${PORT}/`);
-  console.log(`Coins: http://localhost:${PORT}/api/coins`);
-  console.log(`Aggregated: http://localhost:${PORT}/api/coins/aggregated`);
-  console.log('\nData Sources:');
-  console.log('  ✅ DexScreener');
-  console.log('  ✅ Birdeye');
-  console.log('  ✅ GeckoTerminal');
-  console.log('  ✅ Solscan');
-  console.log('  ✅ Raydium');
-  console.log('  ✅ Jupiter');
-  console.log('  ✅ SolanaTracker');
-  console.log('  ✅ CoinGecko');
-  console.log('='.repeat(50));
-});
-
-// Add to your existing server.js/index.js:
-
-app.post('/api/jupiter/quote', async (req, res) => {
-  const response = await fetch(
-    'https://quote-api.jup.ag/v6/quote?' + 
-    new URLSearchParams(req.body)
-  );
-  res.json(await response.json());
-});
-
+// ===== NEW: JUPITER SWAP ENDPOINT =====
 app.post('/api/jupiter/swap', async (req, res) => {
-  const response = await fetch('https://quote-api.jup.ag/v6/swap', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(req.body)
-  });
-  res.json(await response.json());
+  try {
+    const { quoteResponse, userPublicKey } = req.body;
+    
+    console.log('🔄 Jupiter Swap Request:', {
+      userPublicKey: userPublicKey?.slice(0, 8) + '...',
+      inAmount: quoteResponse?.inAmount,
+      outAmount: quoteResponse?.outAmount
+    });
+    
+    // Call Jupiter swap API (server-side, no CORS!)
+    const response = await fetch('https://quote-api.jup.ag/v6/swap', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        quoteResponse,
+        userPublicKey,
+        wrapAndUnwrapSol: true,
+        computeUnitPriceMicroLamports: 'auto',
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto'
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Jupiter swap API error: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log('✅ Jupiter Swap Success:', {
+      hasTransaction: !!data.swapTransaction
+    });
+    
+    res.json(data);
+    
+  } catch (error) {
+    console.error('❌ Jupiter swap error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Failed to get swap transaction'
+    });
+  }
+});
+
+// ===== NEW: PRICE HISTORY ENDPOINT =====
+app.get('/api/price-history/:mint', async (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { interval, limit } = req.query;
+    
+    console.log('📈 Price History Request:', { mint: mint.slice(0, 8) + '...', interval, limit });
+    
+    // Fetch from DexScreener
+    const response = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${mint}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`DexScreener API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Generate mock candle data for now
+    // In production, implement proper candle aggregation
+    const mockCandles = [];
+    const numCandles = parseInt(limit) || 60;
+    const now = Date.now();
+    const intervalMs = interval === '1m' ? 60000 : interval === '15m' ? 900000 : interval === '1h' ? 3600000 : 86400000;
+    
+    for (let i = 0; i < numCandles; i++) {
+      const price = Math.random() * 0.001;
+      mockCandles.push({
+        timestamp: now - (i * intervalMs),
+        open: price * (0.95 + Math.random() * 0.1),
+        high: price * (1.0 + Math.random() * 0.1),
+        low: price * (0.9 + Math.random() * 0.05),
+        close: price,
+        volume: Math.random() * 1000000
+      });
+    }
+    
+    res.json({ 
+      candles: mockCandles.reverse(),
+      pair: data.pairs?.[0] 
+    });
+    
+  } catch (error) {
+    console.error('❌ Price history error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      candles: [] 
+    });
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log('');
+  console.log('🚀 MCHP Backend Server Started!');
+  console.log('================================');
+  console.log(`📡 Port: ${PORT}`);
+  console.log(`🌐 Endpoints:`);
+  console.log(`   GET  /api/coins`);
+  console.log(`   POST /api/jupiter/quote`);
+  console.log(`   POST /api/jupiter/swap`);
+  console.log(`   GET  /api/price-history/:mint`);
+  console.log('================================');
+  console.log('');
 });
