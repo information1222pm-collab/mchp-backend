@@ -25,19 +25,19 @@ app.get('/', (req, res) => {
   });
 });
 
-// ===== TOKEN LISTING WITH BIRDEYE + PUMPFUN FALLBACK =====
+// ===== TOKEN LISTING WITH MULTI-SOURCE AGGREGATION =====
 app.get('/api/coins', async (req, res) => {
   try {
-    console.log('📊 Fetching tokens...');
+    console.log('📊 Fetching tokens from MULTIPLE sources...');
     
-    // Try Birdeye first (most reliable, has PumpFun data)
+    const allTokens = [];
+    const seenMints = new Set();
+    
+    // ===== SOURCE 1: BIRDEYE (TOP 50 BY VOLUME) =====
     const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY;
-    
     if (BIRDEYE_API_KEY) {
       try {
-        console.log('🐦 Trying Birdeye API...');
-        console.log('🔑 Key length:', BIRDEYE_API_KEY.length);
-        
+        console.log('🐦 Fetching from Birdeye...');
         const birdeyeResponse = await fetch(
           'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=50',
           {
@@ -48,11 +48,8 @@ app.get('/api/coins', async (req, res) => {
           }
         );
         
-        console.log('📡 Birdeye status:', birdeyeResponse.status);
-        
         if (birdeyeResponse.ok) {
           const birdeyeData = await birdeyeResponse.json();
-          
           if (birdeyeData.success && birdeyeData.data && birdeyeData.data.tokens) {
             const tokens = birdeyeData.data.tokens.map(t => ({
               mint: t.address,
@@ -67,54 +64,149 @@ app.get('/api/coins', async (req, res) => {
               source: 'birdeye'
             }));
             
+            tokens.forEach(t => {
+              if (!seenMints.has(t.mint)) {
+                seenMints.add(t.mint);
+                allTokens.push(t);
+              }
+            });
             console.log(`✅ Birdeye: ${tokens.length} tokens`);
-            return res.json(tokens);
           }
-        } else {
-          const errorText = await birdeyeResponse.text();
-          console.log('❌ Birdeye error:', birdeyeResponse.status, errorText);
         }
-      } catch (birdeyeError) {
-        console.log('❌ Birdeye exception:', birdeyeError.message);
+      } catch (e) {
+        console.log('❌ Birdeye failed:', e.message);
       }
     }
     
-    // Fallback to PumpFun with ScraperAPI
-    console.log('📊 Falling back to PumpFun...');
-    const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false';
-    
-    const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
-    
-    let fetchUrl;
-    if (SCRAPER_API_KEY) {
-      fetchUrl = `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(pumpFunUrl)}`;
-      console.log('🔒 Using ScraperAPI proxy for PumpFun');
-    } else {
-      fetchUrl = pumpFunUrl;
-      console.log('⚠️ Direct PumpFun request');
-    }
-    
-    const response = await fetch(fetchUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    // ===== SOURCE 2: DEXSCREENER (TOP 100 TRENDING) =====
+    try {
+      console.log('📊 Fetching from DexScreener...');
+      const dexResponse = await fetch('https://api.dexscreener.com/latest/dex/tokens/solana/trending');
+      
+      if (dexResponse.ok) {
+        const dexData = await dexResponse.json();
+        if (dexData.pairs && Array.isArray(dexData.pairs)) {
+          const tokens = dexData.pairs.slice(0, 100).map(p => ({
+            mint: p.baseToken?.address || p.tokenAddress,
+            name: p.baseToken?.name || 'Unknown',
+            symbol: p.baseToken?.symbol || 'UNKNOWN',
+            price: parseFloat(p.priceUsd) || 0,
+            marketCap: parseFloat(p.fdv) || 0,
+            liquidity: parseFloat(p.liquidity?.usd) || 0,
+            volume24h: parseFloat(p.volume?.h24) || 0,
+            priceChange24h: parseFloat(p.priceChange?.h24) || 0,
+            created_timestamp: p.pairCreatedAt || Date.now(),
+            source: 'dexscreener'
+          }));
+          
+          tokens.forEach(t => {
+            if (t.mint && !seenMints.has(t.mint)) {
+              seenMints.add(t.mint);
+              allTokens.push(t);
+            }
+          });
+          console.log(`✅ DexScreener: ${tokens.length} tokens`);
+        }
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`PumpFun API error: ${response.status}`);
+    } catch (e) {
+      console.log('❌ DexScreener failed:', e.message);
     }
     
-    const data = await response.json();
-    console.log(`✅ PumpFun: ${data.length} tokens`);
+    // ===== SOURCE 3: GECKOTERMINAL (TOP 50 TRENDING) =====
+    try {
+      console.log('🦎 Fetching from GeckoTerminal...');
+      const geckoResponse = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/trending_pools');
+      
+      if (geckoResponse.ok) {
+        const geckoData = await geckoResponse.json();
+        if (geckoData.data && Array.isArray(geckoData.data)) {
+          const tokens = geckoData.data.slice(0, 50).map(p => {
+            const baseToken = p.relationships?.base_token?.data;
+            return {
+              mint: baseToken?.id?.split('_')[1] || p.attributes?.address,
+              name: p.attributes?.name || 'Unknown',
+              symbol: baseToken?.id?.split('_')[1]?.slice(0, 6) || 'UNKNOWN',
+              price: parseFloat(p.attributes?.base_token_price_usd) || 0,
+              marketCap: parseFloat(p.attributes?.fdv_usd) || 0,
+              liquidity: parseFloat(p.attributes?.reserve_in_usd) || 0,
+              volume24h: parseFloat(p.attributes?.volume_usd?.h24) || 0,
+              priceChange24h: parseFloat(p.attributes?.price_change_percentage?.h24) || 0,
+              created_timestamp: Date.now(),
+              source: 'geckoterminal'
+            };
+          });
+          
+          tokens.forEach(t => {
+            if (t.mint && !seenMints.has(t.mint)) {
+              seenMints.add(t.mint);
+              allTokens.push(t);
+            }
+          });
+          console.log(`✅ GeckoTerminal: ${tokens.length} tokens`);
+        }
+      }
+    } catch (e) {
+      console.log('❌ GeckoTerminal failed:', e.message);
+    }
     
-    res.json(data);
+    // ===== SOURCE 4: PUMPFUN (NEWEST 50) =====
+    try {
+      console.log('🎪 Fetching from PumpFun...');
+      const pumpUrl = 'https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false';
+      
+      const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
+      const fetchUrl = SCRAPER_API_KEY 
+        ? `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(pumpUrl)}`
+        : pumpUrl;
+      
+      const pumpResponse = await fetch(fetchUrl, {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (pumpResponse.ok) {
+        const pumpData = await pumpResponse.json();
+        if (Array.isArray(pumpData)) {
+          const tokens = pumpData.slice(0, 50).map(t => ({
+            mint: t.mint,
+            name: t.name,
+            symbol: t.symbol,
+            price: t.usd_market_cap ? t.usd_market_cap / (t.total_supply || 1) : 0,
+            marketCap: t.usd_market_cap || 0,
+            liquidity: t.liquidity || 0,
+            volume24h: t.volume_24h || 0,
+            priceChange24h: 0,
+            created_timestamp: t.created_timestamp || Date.now(),
+            source: 'pumpfun'
+          }));
+          
+          tokens.forEach(t => {
+            if (t.mint && !seenMints.has(t.mint)) {
+              seenMints.add(t.mint);
+              allTokens.push(t);
+            }
+          });
+          console.log(`✅ PumpFun: ${tokens.length} tokens`);
+        }
+      }
+    } catch (e) {
+      console.log('❌ PumpFun failed:', e.message);
+    }
+    
+    // ===== RESULTS =====
+    console.log(`\n🎉 TOTAL UNIQUE TOKENS: ${allTokens.length}`);
+    console.log(`📊 Sources: Birdeye, DexScreener, GeckoTerminal, PumpFun\n`);
+    
+    if (allTokens.length === 0) {
+      throw new Error('All data sources failed - no tokens retrieved');
+    }
+    
+    res.json(allTokens);
     
   } catch (error) {
     console.error('❌ Token fetch error:', error);
     res.status(500).json({ 
       error: error.message,
-      suggestion: 'Add BIRDEYE_API_KEY for better reliability. Get free key at: https://docs.birdeye.so'
+      suggestion: 'Multi-source fetch failed. Check API availability.'
     });
   }
 });
