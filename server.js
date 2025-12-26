@@ -35,28 +35,35 @@ app.get('/api/coins', async (req, res) => {
     
     if (BIRDEYE_API_KEY) {
       try {
-        console.log('🐦 Trying Birdeye API...');
+        console.log('🐦 Trying Birdeye API with multiple calls...');
         console.log('🔑 Key length:', BIRDEYE_API_KEY.length);
         
-        // Fetch 1000 tokens sorted by 24h volume
-        const birdeyeResponse = await fetch(
-          'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=1000',
-          {
-            headers: {
-              'X-API-KEY': BIRDEYE_API_KEY,
-              'Accept': 'application/json'
+        // Make 10 calls to get 1000 tokens (100 per call to avoid rate limits)
+        const allTokens = [];
+        const callsToMake = 10;
+        const tokensPerCall = 100;
+        
+        for (let i = 0; i < callsToMake; i++) {
+          const offset = i * tokensPerCall;
+          console.log(`📞 API Call ${i + 1}/${callsToMake} (offset: ${offset})`);
+          
+          const birdeyeResponse = await fetch(
+            `https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=${offset}&limit=${tokensPerCall}`,
+            {
+              headers: {
+                'X-API-KEY': BIRDEYE_API_KEY,
+                'Accept': 'application/json'
+              }
             }
+          );
+          
+          if (!birdeyeResponse.ok) {
+            const errorText = await birdeyeResponse.text();
+            console.log(`❌ Call ${i + 1} failed: ${birdeyeResponse.status} - ${errorText}`);
+            break; // Stop on error
           }
-        );
-        
-        console.log('📡 Birdeye status:', birdeyeResponse.status);
-        
-        if (!birdeyeResponse.ok) {
-          const errorText = await birdeyeResponse.text();
-          console.log('❌ Birdeye error:', birdeyeResponse.status, errorText);
-        } else {
+          
           const birdeyeData = await birdeyeResponse.json();
-          console.log('📊 Birdeye response keys:', Object.keys(birdeyeData));
           
           if (birdeyeData.success && birdeyeData.data && birdeyeData.data.tokens) {
             const tokens = birdeyeData.data.tokens.map(t => ({
@@ -68,16 +75,30 @@ app.get('/api/coins', async (req, res) => {
               liquidity: t.liquidity || 0,
               volume24h: t.v24hUSD || 0,
               priceChange24h: t.priceChange24h || 0,
-              created_timestamp: Date.now(), // Birdeye doesn't have creation time
+              created_timestamp: Date.now(),
               source: 'birdeye'
             }));
             
-            console.log(`✅ Birdeye: ${tokens.length} tokens`);
-            return res.json(tokens);
+            allTokens.push(...tokens);
+            console.log(`✅ Call ${i + 1}: Got ${tokens.length} tokens. Total so far: ${allTokens.length}`);
+            
+            // Small delay between calls to avoid rate limits
+            if (i < callsToMake - 1) {
+              await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+            }
           } else {
-            console.log('⚠️ Birdeye response structure:', JSON.stringify(birdeyeData).slice(0, 500));
+            console.log(`⚠️ Call ${i + 1} returned no tokens`);
+            break;
           }
         }
+        
+        if (allTokens.length > 0) {
+          console.log(`🎉 Birdeye SUCCESS: ${allTokens.length} total tokens from ${callsToMake} API calls`);
+          return res.json(allTokens);
+        } else {
+          console.log('⚠️ No tokens collected from Birdeye');
+        }
+        
       } catch (birdeyeError) {
         console.log('❌ Birdeye exception:', birdeyeError.message);
       }
@@ -87,7 +108,7 @@ app.get('/api/coins', async (req, res) => {
     
     // Fallback to PumpFun with ScraperAPI
     console.log('📊 Falling back to PumpFun...');
-    const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=1000&sort=created_timestamp&order=DESC&includeNsfw=false';
+    const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=100&sort=created_timestamp&order=DESC&includeNsfw=false';
     
     const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
     
