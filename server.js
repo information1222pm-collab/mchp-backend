@@ -36,6 +36,8 @@ app.get('/api/coins', async (req, res) => {
     if (BIRDEYE_API_KEY) {
       try {
         console.log('🐦 Trying Birdeye API...');
+        console.log('🔑 Key length:', BIRDEYE_API_KEY.length);
+        
         const birdeyeResponse = await fetch(
           'https://public-api.birdeye.so/defi/tokenlist?sort_by=creation_time&sort_type=desc&offset=0&limit=50',
           {
@@ -46,8 +48,14 @@ app.get('/api/coins', async (req, res) => {
           }
         );
         
-        if (birdeyeResponse.ok) {
+        console.log('📡 Birdeye status:', birdeyeResponse.status);
+        
+        if (!birdeyeResponse.ok) {
+          const errorText = await birdeyeResponse.text();
+          console.log('❌ Birdeye error:', birdeyeResponse.status, errorText);
+        } else {
           const birdeyeData = await birdeyeResponse.json();
+          console.log('📊 Birdeye response:', JSON.stringify(birdeyeData).slice(0, 200));
           
           if (birdeyeData.success && birdeyeData.data) {
             const tokens = birdeyeData.data.tokens.map(t => ({
@@ -65,11 +73,16 @@ app.get('/api/coins', async (req, res) => {
             
             console.log(`✅ Birdeye: ${tokens.length} tokens`);
             return res.json(tokens);
+          } else {
+            console.log('⚠️ Birdeye response missing success/data');
           }
         }
       } catch (birdeyeError) {
-        console.log('⚠️ Birdeye failed:', birdeyeError.message);
+        console.log('❌ Birdeye exception:', birdeyeError.message);
+        console.log('❌ Birdeye stack:', birdeyeError.stack);
       }
+    } else {
+      console.log('⚠️ No BIRDEYE_API_KEY found');
     }
     
     // Fallback to PumpFun with ScraperAPI
