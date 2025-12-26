@@ -38,9 +38,9 @@ app.get('/api/coins', async (req, res) => {
         console.log('🐦 Trying Birdeye API...');
         console.log('🔑 Key length:', BIRDEYE_API_KEY.length);
         
-        // Use simpler endpoint - just get token list without complex sorting
+        // Fetch 1000 tokens sorted by 24h volume
         const birdeyeResponse = await fetch(
-          'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=50',
+          'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=1000',
           {
             headers: {
               'X-API-KEY': BIRDEYE_API_KEY,
@@ -87,7 +87,7 @@ app.get('/api/coins', async (req, res) => {
     
     // Fallback to PumpFun with ScraperAPI
     console.log('📊 Falling back to PumpFun...');
-    const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false';
+    const pumpFunUrl = 'https://frontend-api.pump.fun/coins?limit=1000&sort=created_timestamp&order=DESC&includeNsfw=false';
     
     const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
     
