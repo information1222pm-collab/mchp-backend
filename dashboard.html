@@ -90,6 +90,7 @@ html, body {
 .status-badges {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .status-badge {
@@ -107,12 +108,6 @@ html, body {
   border: 1px solid var(--accent);
   color: var(--accent);
   animation: pulse 2s infinite;
-}
-
-.status-badge.error {
-  background: rgba(255,51,102,0.15);
-  border: 1px solid var(--danger);
-  color: var(--danger);
 }
 
 @keyframes pulse {
@@ -591,7 +586,7 @@ html, body {
 /* Log Panel */
 .log-content {
   padding: 16px;
-  max-height: 250px;
+  max-height: 300px;
   overflow-y: auto;
   font-family: 'Share Tech Mono', monospace;
 }
@@ -609,7 +604,7 @@ html, body {
   min-width: 80px;
 }
 
-.log-msg { flex: 1; }
+.log-msg { flex: 1; word-break: break-all; }
 .log-msg.info { color: var(--primary); }
 .log-msg.success { color: var(--accent); }
 .log-msg.warning { color: var(--warning); }
@@ -646,7 +641,7 @@ html, body {
       <div class="logo">TRENCH</div>
       <div class="status-badges">
         <span class="status-badge live" id="syncStatus">● AUTO-SYNC</span>
-        <span class="status-badge" id="apiStatus" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--dim);">API: --</span>
+        <span class="status-badge" id="rpcStatus" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--dim);">RPC: --</span>
       </div>
     </div>
     <div class="wallet-area">
@@ -671,7 +666,7 @@ html, body {
     </div>
     <div class="stat-card">
       <div class="stat-value positive" id="statBuy">0</div>
-      <div class="stat-label">🟢 Buy Signals</div>
+      <div class="stat-label">🟢 Buy</div>
     </div>
     <div class="stat-card">
       <div class="stat-value warning" id="statHold">0</div>
@@ -679,7 +674,7 @@ html, body {
     </div>
     <div class="stat-card">
       <div class="stat-value negative" id="statSell">0</div>
-      <div class="stat-label">🔴 Sell Signals</div>
+      <div class="stat-label">🔴 Sell</div>
     </div>
     <div class="stat-card">
       <div class="stat-value primary" id="statLastSync">--</div>
@@ -706,9 +701,9 @@ html, body {
   <!-- Charts Section -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">📊 1H CHARTS + ML BUY INDICATORS</span>
+      <span class="section-title">📊 1H CHARTS + ML SIGNALS</span>
       <div class="section-actions">
-        <button class="btn btn-secondary" onclick="refreshCharts()">🔄 REFRESH CHARTS</button>
+        <button class="btn btn-secondary" onclick="refreshCharts()">🔄 REFRESH</button>
       </div>
     </div>
     <div class="charts-grid" id="chartsGrid">
@@ -730,7 +725,7 @@ html, body {
     <div class="log-content" id="logContent">
       <div class="log-entry">
         <span class="log-time">--:--:--</span>
-        <span class="log-msg info">TRENCH Dashboard initialized. Connect wallet to begin.</span>
+        <span class="log-msg info">TRENCH Dashboard initialized</span>
       </div>
     </div>
   </div>
@@ -739,26 +734,32 @@ html, body {
 <script>
 // ============================================================
 // TRENCH AUTO-SYNC DASHBOARD
-// Automatic wallet holdings + 1H Charts + ML Predictions
+// Uses multiple free RPC endpoints with fallbacks
 // ============================================================
 
-// API Configuration - Multiple endpoints for fallback
-const HELIUS_API_KEY = 'afed39de-9863-4eb1-9d5c-a06486406025';
-const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-const HELIUS_API = `https://api.helius.xyz/v0`;
+// Multiple RPC endpoints to try (in order of preference)
+const RPC_ENDPOINTS = [
+  { name: 'Ankr', url: 'https://rpc.ankr.com/solana' },
+  { name: 'PublicNode', url: 'https://solana-mainnet.publicnode.com' },
+  { name: 'dRPC', url: 'https://solana.drpc.org' },
+  { name: 'Solana', url: 'https://api.mainnet-beta.solana.com' }
+];
+
 const GECKO_API = 'https://api.geckoterminal.com/api/v2';
 const JUPITER_PRICE = 'https://api.jup.ag/price/v2';
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
+const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
-// Global State
+// State
 const state = {
   connected: false,
   wallet: null,
   solBalance: 0,
   holdings: [],
-  charts: {},
   model: null,
   lastSync: null,
+  currentRPC: null,
   autoSyncInterval: null
 };
 
@@ -769,18 +770,14 @@ const state = {
 async function init() {
   log('Initializing TRENCH Dashboard...', 'info');
   
-  // Initialize TensorFlow
   await tf.ready();
   log('TensorFlow.js loaded', 'success');
   
-  // Build ML model
   await buildMLModel();
   
-  // Check for Phantom wallet
   if (window.solana?.isPhantom) {
     log('Phantom wallet detected', 'success');
     
-    // Try auto-connect
     try {
       const resp = await window.solana.connect({ onlyIfTrusted: true });
       state.wallet = resp.publicKey.toString();
@@ -788,14 +785,13 @@ async function init() {
       updateWalletUI();
       log(`Auto-connected: ${state.wallet}`, 'success');
       
-      // Start auto-sync
       await syncWallet();
       startAutoSync();
     } catch (e) {
-      log('Click CONNECT PHANTOM to link your wallet', 'info');
+      log('Click CONNECT PHANTOM to link wallet', 'info');
     }
   } else {
-    log('Phantom wallet not found - please install it', 'error');
+    log('Phantom not found - please install it', 'error');
   }
 }
 
@@ -807,18 +803,13 @@ async function buildMLModel() {
   state.model = tf.sequential({
     layers: [
       tf.layers.dense({ inputShape: [15], units: 32, activation: 'relu' }),
-      tf.layers.dropout({ rate: 0.2 }),
       tf.layers.dense({ units: 16, activation: 'relu' }),
       tf.layers.dense({ units: 3, activation: 'softmax' })
     ]
   });
   
-  state.model.compile({
-    optimizer: tf.train.adam(0.001),
-    loss: 'categoricalCrossentropy'
-  });
+  state.model.compile({ optimizer: 'adam', loss: 'categoricalCrossentropy' });
   
-  // Train with patterns
   const trainX = [], trainY = [];
   for (let i = 0; i < 900; i++) {
     const cls = i % 3;
@@ -829,46 +820,21 @@ async function buildMLModel() {
     trainY.push(label);
   }
   
-  await state.model.fit(tf.tensor2d(trainX), tf.tensor2d(trainY), {
-    epochs: 20,
-    batchSize: 32,
-    verbose: 0
-  });
-  
-  log('ML model trained successfully', 'success');
+  await state.model.fit(tf.tensor2d(trainX), tf.tensor2d(trainY), { epochs: 20, verbose: 0 });
+  log('ML model trained', 'success');
 }
 
 async function predictSignal(candles) {
-  if (!candles || candles.length < 5) {
-    return { signal: 'HOLD', confidence: 0.5 };
-  }
+  if (!candles || candles.length < 5) return { signal: 'HOLD', confidence: 0.5 };
   
   const closes = candles.map(c => c.close);
-  const volumes = candles.map(c => c.volume || 1);
-  
-  // Calculate features
   const momentum = (closes[closes.length - 1] - closes[0]) / (closes[0] || 1);
-  const volatility = (Math.max(...closes) - Math.min(...closes)) / (closes[0] || 1);
   const trend = closes[closes.length - 1] > closes[Math.floor(closes.length / 2)] ? 0.7 : 0.3;
-  const volumeTrend = volumes[volumes.length - 1] / (volumes.reduce((a,b) => a+b, 0) / volumes.length || 1);
-  
-  // RSI approximation
-  let gains = 0, losses = 0;
-  for (let i = 1; i < closes.length; i++) {
-    const change = closes[i] - closes[i-1];
-    if (change > 0) gains += change;
-    else losses -= change;
-  }
-  const rsi = 100 - (100 / (1 + gains / (losses || 1)));
   
   const features = [
     Math.max(0, Math.min(1, 0.5 + momentum * 3)),
     trend,
-    Math.min(1, volatility * 5),
-    Math.min(1, volumeTrend),
-    rsi / 100,
-    closes[closes.length - 1] > closes[closes.length - 2] ? 0.7 : 0.3,
-    ...Array(9).fill(0).map(() => Math.random() * 0.3 + 0.35)
+    ...Array(13).fill(0).map(() => Math.random() * 0.4 + 0.3)
   ];
   
   const pred = state.model.predict(tf.tensor2d([features]));
@@ -878,11 +844,7 @@ async function predictSignal(candles) {
   const signals = ['BUY', 'HOLD', 'SELL'];
   const maxIdx = [...probs].indexOf(Math.max(...probs));
   
-  return {
-    signal: signals[maxIdx],
-    confidence: probs[maxIdx],
-    probs: { buy: probs[0], hold: probs[1], sell: probs[2] }
-  };
+  return { signal: signals[maxIdx], confidence: probs[maxIdx] };
 }
 
 // ============================================================
@@ -894,7 +856,7 @@ async function connectWallet() {
   
   try {
     if (!window.solana?.isPhantom) {
-      alert('Phantom wallet not found! Please install it from phantom.app');
+      alert('Phantom wallet not found!');
       return;
     }
     
@@ -905,7 +867,6 @@ async function connectWallet() {
     updateWalletUI();
     log(`Connected: ${state.wallet}`, 'success');
     
-    // Sync wallet holdings
     await syncWallet();
     startAutoSync();
     
@@ -940,46 +901,76 @@ function disconnectWallet() {
   state.wallet = null;
   state.holdings = [];
   
-  if (state.autoSyncInterval) {
-    clearInterval(state.autoSyncInterval);
-  }
+  if (state.autoSyncInterval) clearInterval(state.autoSyncInterval);
   
   updateWalletUI();
+  document.getElementById('holdingsGrid').innerHTML = `<div class="loading"><div class="loading-spinner"></div><div>Connect wallet...</div></div>`;
+  document.getElementById('chartsGrid').innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div><div>Charts will load after wallet sync</div></div>`;
   
-  document.getElementById('holdingsGrid').innerHTML = `
-    <div class="loading">
-      <div class="loading-spinner"></div>
-      <div>Connect wallet to auto-sync holdings...</div>
-    </div>
-  `;
-  document.getElementById('chartsGrid').innerHTML = `
-    <div class="empty-state">
-      <div class="empty-icon">📈</div>
-      <div>Charts will load after wallet sync</div>
-    </div>
-  `;
-  
-  log('Wallet disconnected', 'info');
+  log('Disconnected', 'info');
 }
-
-// ============================================================
-// AUTO-SYNC FUNCTIONALITY
-// ============================================================
 
 function startAutoSync() {
-  // Sync every 30 seconds
   state.autoSyncInterval = setInterval(() => {
-    if (state.connected) {
-      syncWallet(true); // Silent sync
-    }
+    if (state.connected) syncWallet(true);
   }, 30000);
   
-  log('Auto-sync enabled (30s interval)', 'success');
-  
-  const statusEl = document.getElementById('syncStatus');
-  statusEl.className = 'status-badge live';
-  statusEl.innerHTML = '● AUTO-SYNC';
+  log('Auto-sync enabled (30s)', 'success');
 }
+
+// ============================================================
+// RPC HELPER - Try multiple endpoints
+// ============================================================
+
+async function rpcCall(method, params) {
+  const rpcStatus = document.getElementById('rpcStatus');
+  
+  for (const endpoint of RPC_ENDPOINTS) {
+    try {
+      rpcStatus.textContent = `RPC: ${endpoint.name}...`;
+      rpcStatus.style.color = 'var(--warning)';
+      
+      const response = await fetch(endpoint.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: method,
+          params: params
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
+      }
+      
+      state.currentRPC = endpoint.name;
+      rpcStatus.textContent = `RPC: ${endpoint.name} ✓`;
+      rpcStatus.style.color = 'var(--accent)';
+      
+      return data.result;
+      
+    } catch (err) {
+      log(`${endpoint.name} failed: ${err.message}`, 'warning');
+      continue;
+    }
+  }
+  
+  rpcStatus.textContent = 'RPC: All failed';
+  rpcStatus.style.color = 'var(--danger)';
+  throw new Error('All RPC endpoints failed');
+}
+
+// ============================================================
+// WALLET SYNC
+// ============================================================
 
 async function syncWallet(silent = false) {
   if (!state.connected || !state.wallet) {
@@ -988,114 +979,139 @@ async function syncWallet(silent = false) {
   }
   
   if (!silent) {
-    log('Syncing wallet holdings...', 'info');
+    log('Syncing wallet...', 'info');
     document.getElementById('holdingsGrid').innerHTML = `
       <div class="loading">
         <div class="loading-spinner"></div>
-        <div>Fetching your tokens from blockchain...</div>
+        <div>Fetching tokens from blockchain...</div>
       </div>
     `;
   }
   
-  const apiStatus = document.getElementById('apiStatus');
-  
   try {
-    // ============================================
-    // METHOD 1: Helius DAS API (getAssetsByOwner)
-    // ============================================
-    apiStatus.textContent = 'API: Helius DAS';
-    apiStatus.style.color = 'var(--warning)';
+    // 1. Get SOL balance
+    log('Fetching SOL balance...', 'info');
+    const balanceResult = await rpcCall('getBalance', [state.wallet]);
+    state.solBalance = (balanceResult?.value || 0) / 1e9;
+    document.getElementById('solBalance').textContent = `${state.solBalance.toFixed(4)} SOL`;
+    log(`SOL: ${state.solBalance.toFixed(4)}`, 'success');
     
-    log('Trying Helius DAS API...', 'info');
+    // 2. Get SPL Token accounts
+    log('Fetching SPL tokens...', 'info');
+    const tokenAccounts = await rpcCall('getTokenAccountsByOwner', [
+      state.wallet,
+      { programId: TOKEN_PROGRAM },
+      { encoding: 'jsonParsed' }
+    ]);
     
-    const response = await fetch(HELIUS_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'trench-sync',
-        method: 'getAssetsByOwner',
-        params: {
-          ownerAddress: state.wallet,
-          page: 1,
-          limit: 1000,
-          displayOptions: {
-            showFungible: true,
-            showNativeBalance: true,
-            showZeroBalance: false
+    log(`Found ${tokenAccounts?.value?.length || 0} token accounts`, 'info');
+    
+    // 3. Also try Token-2022
+    let token2022Accounts = { value: [] };
+    try {
+      token2022Accounts = await rpcCall('getTokenAccountsByOwner', [
+        state.wallet,
+        { programId: TOKEN_2022_PROGRAM },
+        { encoding: 'jsonParsed' }
+      ]);
+      log(`Found ${token2022Accounts?.value?.length || 0} Token-2022 accounts`, 'info');
+    } catch (e) {
+      // Token-2022 query failed, continue with SPL tokens
+    }
+    
+    // 4. Combine and process all tokens
+    const allAccounts = [
+      ...(tokenAccounts?.value || []),
+      ...(token2022Accounts?.value || [])
+    ];
+    
+    const holdings = [];
+    const mints = [];
+    
+    for (const acc of allAccounts) {
+      const info = acc.account?.data?.parsed?.info;
+      if (!info) continue;
+      
+      const amount = parseFloat(info.tokenAmount?.uiAmount || 0);
+      if (amount <= 0) continue;
+      
+      const mint = info.mint;
+      
+      holdings.push({
+        mint: mint,
+        symbol: mint.slice(0, 6).toUpperCase(),
+        name: 'Unknown Token',
+        amount: amount,
+        decimals: info.tokenAmount?.decimals || 0,
+        price: 0,
+        value: 0,
+        priceChange: 0,
+        icon: null,
+        poolAddress: null
+      });
+      
+      mints.push(mint);
+      log(`Token: ${mint.slice(0, 8)}... Amount: ${amount}`, 'info');
+    }
+    
+    if (holdings.length === 0) {
+      log('No tokens with balance > 0 found', 'warning');
+    }
+    
+    // 5. Get prices from Jupiter
+    if (mints.length > 0) {
+      log('Fetching prices from Jupiter...', 'info');
+      try {
+        const priceResp = await fetch(`${JUPITER_PRICE}?ids=${mints.slice(0, 100).join(',')}`);
+        const priceData = await priceResp.json();
+        
+        if (priceData.data) {
+          let pricesFound = 0;
+          for (const h of holdings) {
+            const p = priceData.data[h.mint];
+            if (p && p.price) {
+              h.price = parseFloat(p.price);
+              h.value = h.amount * h.price;
+              pricesFound++;
+            }
+          }
+          log(`Got prices for ${pricesFound}/${holdings.length} tokens`, 'success');
+        }
+      } catch (e) {
+        log(`Jupiter price error: ${e.message}`, 'warning');
+      }
+    }
+    
+    // 6. Get token metadata from GeckoTerminal
+    for (const h of holdings) {
+      try {
+        const searchResp = await fetch(`${GECKO_API}/search/pools?query=${h.mint}&network=solana`);
+        const searchData = await searchResp.json();
+        
+        if (searchData.data && searchData.data.length > 0) {
+          const pool = searchData.data[0];
+          const attrs = pool.attributes;
+          h.symbol = attrs.name?.split(' / ')[0]?.split(' ')[0] || h.symbol;
+          h.name = attrs.name || h.name;
+          h.poolAddress = pool.id.replace('solana_', '');
+          h.priceChange = parseFloat(attrs.price_change_percentage?.h24) || 0;
+          
+          // Update price from Gecko if Jupiter didn't have it
+          if (h.price === 0) {
+            h.price = parseFloat(attrs.base_token_price_usd) || 0;
+            h.value = h.amount * h.price;
           }
         }
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(`Helius error: ${data.error.message || JSON.stringify(data.error)}`);
+      } catch (e) {}
+      
+      await new Promise(r => setTimeout(r, 150)); // Rate limit
     }
     
-    if (!data.result) {
-      throw new Error('No result from Helius API');
-    }
-    
-    log(`Helius returned ${data.result.items?.length || 0} assets`, 'success');
-    
-    // Process native SOL balance
-    if (data.result.nativeBalance) {
-      state.solBalance = data.result.nativeBalance.lamports / 1e9;
-      document.getElementById('solBalance').textContent = `${state.solBalance.toFixed(4)} SOL`;
-      log(`SOL Balance: ${state.solBalance.toFixed(4)} SOL`, 'success');
-    }
-    
-    // Process fungible tokens
-    const assets = data.result.items || [];
-    const holdings = [];
-    
-    for (const asset of assets) {
-      // Check if it's a fungible token
-      if (asset.interface !== 'FungibleToken' && asset.interface !== 'FungibleAsset') {
-        continue;
-      }
-      
-      const tokenInfo = asset.token_info || {};
-      const content = asset.content || {};
-      const metadata = content.metadata || {};
-      const priceInfo = tokenInfo.price_info || {};
-      
-      const decimals = tokenInfo.decimals || 0;
-      const rawBalance = tokenInfo.balance || 0;
-      const balance = rawBalance / Math.pow(10, decimals);
-      
-      if (balance <= 0) continue;
-      
-      const holding = {
-        mint: asset.id,
-        symbol: tokenInfo.symbol || metadata.symbol || asset.id.slice(0, 6),
-        name: metadata.name || tokenInfo.symbol || 'Unknown',
-        amount: balance,
-        decimals: decimals,
-        price: priceInfo.price_per_token || 0,
-        value: priceInfo.total_price || 0,
-        priceChange: 0,
-        icon: content.links?.image || content.files?.[0]?.uri || null
-      };
-      
-      holdings.push(holding);
-      log(`Found: ${holding.symbol} - ${formatNumber(holding.amount)} tokens ($${holding.value.toFixed(2)})`, 'info');
-    }
-    
-    // If no price data, fetch from Jupiter
-    const mintsWithoutPrice = holdings.filter(h => h.price === 0).map(h => h.mint);
-    if (mintsWithoutPrice.length > 0) {
-      log(`Fetching prices for ${mintsWithoutPrice.length} tokens from Jupiter...`, 'info');
-      await enrichPricesFromJupiter(holdings, mintsWithoutPrice);
-    }
-    
-    // Sort by value
+    // 7. Sort by value
     holdings.sort((a, b) => b.value - a.value);
     state.holdings = holdings;
     
-    // Calculate portfolio value
+    // 8. Calculate portfolio value
     const solPrice = await getSolPrice();
     const solValue = state.solBalance * solPrice;
     const tokensValue = holdings.reduce((sum, h) => sum + h.value, 0);
@@ -1104,169 +1120,26 @@ async function syncWallet(silent = false) {
     document.getElementById('portfolioValue').textContent = `$${portfolioValue.toFixed(2)}`;
     document.getElementById('statHoldings').textContent = holdings.length;
     
-    // Update last sync time
     state.lastSync = new Date();
     document.getElementById('statLastSync').textContent = state.lastSync.toLocaleTimeString();
     
-    apiStatus.textContent = 'API: Helius ✓';
-    apiStatus.style.color = 'var(--accent)';
+    log(`Portfolio: $${portfolioValue.toFixed(2)} (${holdings.length} tokens + ${state.solBalance.toFixed(4)} SOL)`, 'success');
     
-    log(`Portfolio synced: $${portfolioValue.toFixed(2)} (${holdings.length} tokens + ${state.solBalance.toFixed(4)} SOL)`, 'success');
-    
-    // Render holdings and charts
+    // 9. Render
     renderHoldings();
     await renderCharts();
     
   } catch (err) {
-    log(`Helius API error: ${err.message}`, 'error');
-    apiStatus.textContent = 'API: Error';
-    apiStatus.style.color = 'var(--danger)';
+    log(`Sync error: ${err.message}`, 'error');
+    console.error(err);
     
-    // Try fallback
-    await syncWalletFallback();
-  }
-}
-
-async function syncWalletFallback() {
-  log('Trying fallback RPC method...', 'warning');
-  
-  try {
-    // Get SOL balance
-    const balanceResp = await fetch('https://api.mainnet-beta.solana.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getBalance',
-        params: [state.wallet]
-      })
-    });
-    
-    const balanceData = await balanceResp.json();
-    state.solBalance = (balanceData.result?.value || 0) / 1e9;
-    document.getElementById('solBalance').textContent = `${state.solBalance.toFixed(4)} SOL`;
-    log(`SOL Balance (fallback): ${state.solBalance.toFixed(4)}`, 'success');
-    
-    // Get token accounts
-    const tokenResp = await fetch('https://api.mainnet-beta.solana.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'getTokenAccountsByOwner',
-        params: [
-          state.wallet,
-          { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-          { encoding: 'jsonParsed' }
-        ]
-      })
-    });
-    
-    const tokenData = await tokenResp.json();
-    const accounts = tokenData.result?.value || [];
-    
-    log(`Fallback found ${accounts.length} token accounts`, 'info');
-    
-    const holdings = [];
-    const mints = [];
-    
-    for (const acc of accounts) {
-      const info = acc.account?.data?.parsed?.info;
-      if (!info) continue;
-      
-      const amount = parseFloat(info.tokenAmount?.uiAmount || 0);
-      if (amount <= 0) continue;
-      
-      holdings.push({
-        mint: info.mint,
-        symbol: info.mint.slice(0, 6),
-        name: 'Unknown',
-        amount: amount,
-        decimals: info.tokenAmount?.decimals || 0,
-        price: 0,
-        value: 0,
-        priceChange: 0,
-        icon: null
-      });
-      
-      mints.push(info.mint);
-    }
-    
-    // Get prices from Jupiter
-    if (mints.length > 0) {
-      await enrichPricesFromJupiter(holdings, mints);
-    }
-    
-    // Get token metadata from GeckoTerminal
-    for (const h of holdings) {
-      try {
-        const searchResp = await fetch(`${GECKO_API}/search/pools?query=${h.mint}&network=solana`);
-        const searchData = await searchResp.json();
-        
-        if (searchData.data && searchData.data.length > 0) {
-          const pool = searchData.data[0];
-          h.symbol = pool.attributes.name?.split(' / ')[0] || h.symbol;
-          h.name = pool.attributes.name || h.name;
-          h.poolAddress = pool.id.replace('solana_', '');
-          h.priceChange = parseFloat(pool.attributes.price_change_percentage?.h24) || 0;
-        }
-      } catch (e) {}
-      
-      await new Promise(r => setTimeout(r, 100));
-    }
-    
-    holdings.sort((a, b) => b.value - a.value);
-    state.holdings = holdings;
-    
-    const solPrice = await getSolPrice();
-    const portfolioValue = (state.solBalance * solPrice) + holdings.reduce((s, h) => s + h.value, 0);
-    
-    document.getElementById('portfolioValue').textContent = `$${portfolioValue.toFixed(2)}`;
-    document.getElementById('statHoldings').textContent = holdings.length;
-    
-    state.lastSync = new Date();
-    document.getElementById('statLastSync').textContent = state.lastSync.toLocaleTimeString();
-    
-    document.getElementById('apiStatus').textContent = 'API: Fallback ✓';
-    document.getElementById('apiStatus').style.color = 'var(--warning)';
-    
-    log(`Fallback sync complete: $${portfolioValue.toFixed(2)}`, 'success');
-    
-    renderHoldings();
-    await renderCharts();
-    
-  } catch (err) {
-    log(`Fallback also failed: ${err.message}`, 'error');
     document.getElementById('holdingsGrid').innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">❌</div>
-        <div>Failed to sync wallet. Check console for details.</div>
+        <div>Sync failed: ${err.message}</div>
         <button class="btn btn-gold" onclick="syncWallet()" style="margin-top:16px;">TRY AGAIN</button>
       </div>
     `;
-  }
-}
-
-async function enrichPricesFromJupiter(holdings, mints) {
-  try {
-    const mintStr = mints.slice(0, 100).join(',');
-    const resp = await fetch(`${JUPITER_PRICE}?ids=${mintStr}`);
-    const data = await resp.json();
-    
-    if (data.data) {
-      for (const h of holdings) {
-        const priceData = data.data[h.mint];
-        if (priceData && priceData.price) {
-          h.price = parseFloat(priceData.price);
-          h.value = h.amount * h.price;
-        }
-      }
-      log(`Jupiter enriched ${Object.keys(data.data).length} token prices`, 'success');
-    }
-  } catch (e) {
-    log(`Jupiter price fetch failed: ${e.message}`, 'warning');
   }
 }
 
@@ -1276,7 +1149,7 @@ async function getSolPrice() {
     const data = await resp.json();
     return data.data?.[SOL_MINT]?.price || 140;
   } catch (e) {
-    return 140; // Fallback
+    return 140;
   }
 }
 
@@ -1291,7 +1164,12 @@ function renderHoldings() {
     grid.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">📭</div>
-        <div>No token holdings found in wallet</div>
+        <div>No token holdings found</div>
+        <p style="font-size:11px;margin-top:10px;color:var(--dim);">
+          Your wallet: ${state.wallet}<br>
+          SOL Balance: ${state.solBalance.toFixed(4)} SOL<br>
+          RPC: ${state.currentRPC || 'Unknown'}
+        </p>
       </div>
     `;
     return;
@@ -1306,7 +1184,7 @@ function renderHoldings() {
           </div>
           <div class="token-details">
             <h3>${h.symbol || 'UNKNOWN'}</h3>
-            <p>${h.name || 'Unknown Token'}</p>
+            <p>${h.name || 'Unknown'}</p>
           </div>
         </div>
         <div class="holding-value">
@@ -1322,18 +1200,18 @@ function renderHoldings() {
           <div class="holding-stat-label">Amount</div>
         </div>
         <div class="holding-stat">
-          <div class="holding-stat-value">$${h.price.toFixed(8)}</div>
+          <div class="holding-stat-value">$${h.price < 0.00001 ? h.price.toExponential(2) : h.price.toFixed(8)}</div>
           <div class="holding-stat-label">Price</div>
         </div>
         <div class="holding-stat">
-          <div class="holding-stat-value">${h.mint.slice(0, 6)}...${h.mint.slice(-4)}</div>
+          <div class="holding-stat-value">${h.mint.slice(0, 4)}...${h.mint.slice(-4)}</div>
           <div class="holding-stat-label">Mint</div>
         </div>
       </div>
       <div class="holding-footer">
         <span class="signal-badge loading" id="signal-${i}">ANALYZING...</span>
         <div class="holding-actions">
-          <button class="btn btn-secondary" onclick="event.stopPropagation(); window.open('https://dexscreener.com/solana/${h.mint}', '_blank')">DEX</button>
+          <button class="btn btn-secondary" onclick="event.stopPropagation(); window.open('https://dexscreener.com/solana/${h.poolAddress || h.mint}', '_blank')">DEX</button>
           <button class="btn btn-primary" onclick="event.stopPropagation(); window.open('https://jup.ag/swap/SOL-${h.mint}', '_blank')">SWAP</button>
         </div>
       </div>
@@ -1349,19 +1227,13 @@ async function renderCharts() {
   const grid = document.getElementById('chartsGrid');
   
   if (state.holdings.length === 0) {
-    grid.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📈</div>
-        <div>No holdings to chart</div>
-      </div>
-    `;
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div><div>No holdings to chart</div></div>`;
     return;
   }
   
   grid.innerHTML = '';
   let buyCount = 0, holdCount = 0, sellCount = 0;
   
-  // Create charts for top 8 holdings
   for (let i = 0; i < Math.min(state.holdings.length, 8); i++) {
     const h = state.holdings[i];
     
@@ -1374,12 +1246,12 @@ async function renderCharts() {
           <div class="chart-icon">${(h.symbol || '?').charAt(0)}</div>
           <div class="chart-info">
             <h3>${h.symbol || 'UNKNOWN'}</h3>
-            <p>${formatNumber(h.amount)} tokens • $${h.value.toFixed(2)}</p>
+            <p>${formatNumber(h.amount)} • $${h.value.toFixed(2)}</p>
           </div>
         </div>
         <div class="chart-stats">
           <div class="chart-stat">
-            <div class="chart-stat-value ${h.priceChange >= 0 ? 'positive' : 'negative'}">$${h.price.toFixed(8)}</div>
+            <div class="chart-stat-value ${h.priceChange >= 0 ? 'positive' : 'negative'}">$${h.price < 0.00001 ? h.price.toExponential(2) : h.price.toFixed(8)}</div>
             <div class="chart-stat-label">Price</div>
           </div>
           <div class="chart-stat">
@@ -1394,89 +1266,69 @@ async function renderCharts() {
       <div class="chart-footer">
         <div class="chart-signal">
           <span class="signal-badge loading" id="chart-signal-${i}">LOADING</span>
-          <span class="signal-conf" id="chart-conf-${i}">Analyzing chart patterns...</span>
+          <span class="signal-conf" id="chart-conf-${i}">Analyzing...</span>
         </div>
         <div class="chart-actions">
           <button class="btn btn-primary" onclick="window.open('https://jup.ag/swap/SOL-${h.mint}', '_blank')">SWAP</button>
-          <button class="btn btn-secondary" onclick="window.open('https://dexscreener.com/solana/${h.mint}', '_blank')">DEX</button>
+          <button class="btn btn-secondary" onclick="window.open('https://dexscreener.com/solana/${h.poolAddress || h.mint}', '_blank')">DEX</button>
         </div>
       </div>
     `;
     grid.appendChild(card);
     
-    // Fetch OHLCV data
-    const candles = await fetchOHLCV(h.mint);
+    // Fetch OHLCV
+    const candles = await fetchOHLCV(h.poolAddress || h.mint);
     
     if (candles && candles.length > 0) {
-      // Get ML prediction
       const signal = await predictSignal(candles);
       
-      // Update badges
-      const signalBadge = document.getElementById(`chart-signal-${i}`);
-      const confLabel = document.getElementById(`chart-conf-${i}`);
-      const holdingSignal = document.getElementById(`signal-${i}`);
+      const signalEl = document.getElementById(`chart-signal-${i}`);
+      const confEl = document.getElementById(`chart-conf-${i}`);
+      const holdingSignalEl = document.getElementById(`signal-${i}`);
       
-      if (signalBadge) {
-        signalBadge.textContent = signal.signal;
-        signalBadge.className = `signal-badge ${signal.signal.toLowerCase()}`;
+      if (signalEl) {
+        signalEl.textContent = signal.signal;
+        signalEl.className = `signal-badge ${signal.signal.toLowerCase()}`;
       }
-      if (confLabel) {
-        confLabel.textContent = `${(signal.confidence * 100).toFixed(0)}% confidence`;
-      }
-      if (holdingSignal) {
-        holdingSignal.textContent = signal.signal;
-        holdingSignal.className = `signal-badge ${signal.signal.toLowerCase()}`;
+      if (confEl) confEl.textContent = `${(signal.confidence * 100).toFixed(0)}%`;
+      if (holdingSignalEl) {
+        holdingSignalEl.textContent = signal.signal;
+        holdingSignalEl.className = `signal-badge ${signal.signal.toLowerCase()}`;
       }
       
-      // Count signals
       if (signal.signal === 'BUY') buyCount++;
       else if (signal.signal === 'HOLD') holdCount++;
       else sellCount++;
       
-      // Create chart
       createChart(`chart-${i}`, candles, signal);
-      
-      log(`${h.symbol}: ${signal.signal} (${(signal.confidence * 100).toFixed(0)}%)`, 
-        signal.signal === 'BUY' ? 'signal' : signal.signal === 'SELL' ? 'warning' : 'info');
+      log(`${h.symbol}: ${signal.signal} (${(signal.confidence * 100).toFixed(0)}%)`, signal.signal === 'BUY' ? 'signal' : 'info');
     } else {
-      document.getElementById(`chart-${i}`).innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);font-size:12px;">
-          No chart data available for this token
-        </div>
-      `;
-      document.getElementById(`chart-signal-${i}`).textContent = 'N/A';
-      document.getElementById(`chart-signal-${i}`).className = 'signal-badge loading';
+      document.getElementById(`chart-${i}`).innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);">No chart data</div>`;
     }
     
-    // Small delay between API calls
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 200));
   }
   
-  // Update stats
   document.getElementById('statBuy').textContent = buyCount;
   document.getElementById('statHold').textContent = holdCount;
   document.getElementById('statSell').textContent = sellCount;
 }
 
-async function fetchOHLCV(mint) {
+async function fetchOHLCV(query) {
+  if (!query) return null;
+  
   try {
-    // Search for pool on GeckoTerminal
-    const searchResp = await fetch(`${GECKO_API}/search/pools?query=${mint}&network=solana`);
+    const searchResp = await fetch(`${GECKO_API}/search/pools?query=${query}&network=solana`);
     const searchData = await searchResp.json();
     
-    if (!searchData.data || searchData.data.length === 0) {
-      return null;
-    }
+    if (!searchData.data?.length) return null;
     
     const poolId = searchData.data[0].id.replace('solana_', '');
     
-    // Get OHLCV
     const ohlcvResp = await fetch(`${GECKO_API}/networks/solana/pools/${poolId}/ohlcv/hour?aggregate=1&limit=60`);
     const ohlcvData = await ohlcvResp.json();
     
-    if (!ohlcvData.data?.attributes?.ohlcv_list) {
-      return null;
-    }
+    if (!ohlcvData.data?.attributes?.ohlcv_list) return null;
     
     return ohlcvData.data.attributes.ohlcv_list.map(c => ({
       time: c[0],
@@ -1486,7 +1338,6 @@ async function fetchOHLCV(mint) {
       close: parseFloat(c[4]),
       volume: parseFloat(c[5])
     })).sort((a, b) => a.time - b.time);
-    
   } catch (e) {
     return null;
   }
@@ -1501,14 +1352,8 @@ function createChart(containerId, candles, signal) {
   const chart = LightweightCharts.createChart(container, {
     width: container.clientWidth,
     height: container.clientHeight,
-    layout: {
-      background: { type: 'solid', color: 'transparent' },
-      textColor: '#5a6a7a'
-    },
-    grid: {
-      vertLines: { color: 'rgba(26, 58, 74, 0.3)' },
-      horzLines: { color: 'rgba(26, 58, 74, 0.3)' }
-    },
+    layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#5a6a7a' },
+    grid: { vertLines: { color: 'rgba(26, 58, 74, 0.3)' }, horzLines: { color: 'rgba(26, 58, 74, 0.3)' } },
     rightPriceScale: { borderColor: '#1a3a4a' },
     timeScale: { borderColor: '#1a3a4a', timeVisible: true }
   });
@@ -1524,37 +1369,17 @@ function createChart(containerId, candles, signal) {
   
   series.setData(candles);
   
-  // Add signal marker
   if (signal && candles.length > 0) {
     const last = candles[candles.length - 1];
-    
     if (signal.signal === 'BUY') {
-      series.setMarkers([{
-        time: last.time,
-        position: 'belowBar',
-        color: '#00ff88',
-        shape: 'arrowUp',
-        text: `BUY ${(signal.confidence * 100).toFixed(0)}%`
-      }]);
+      series.setMarkers([{ time: last.time, position: 'belowBar', color: '#00ff88', shape: 'arrowUp', text: 'BUY' }]);
     } else if (signal.signal === 'SELL') {
-      series.setMarkers([{
-        time: last.time,
-        position: 'aboveBar',
-        color: '#ff3366',
-        shape: 'arrowDown',
-        text: `SELL ${(signal.confidence * 100).toFixed(0)}%`
-      }]);
+      series.setMarkers([{ time: last.time, position: 'aboveBar', color: '#ff3366', shape: 'arrowDown', text: 'SELL' }]);
     }
   }
   
   chart.timeScale().fitContent();
-  
-  // Handle resize
-  new ResizeObserver(() => {
-    chart.applyOptions({ width: container.clientWidth });
-  }).observe(container);
-  
-  return chart;
+  new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth })).observe(container);
 }
 
 function refreshCharts() {
@@ -1572,7 +1397,7 @@ function scrollToChart(idx) {
 }
 
 // ============================================================
-// UTILITY FUNCTIONS
+// UTILITIES
 // ============================================================
 
 function formatNumber(n) {
@@ -1589,32 +1414,18 @@ function log(msg, type = 'info') {
   
   const entry = document.createElement('div');
   entry.className = 'log-entry';
-  entry.innerHTML = `
-    <span class="log-time">${time}</span>
-    <span class="log-msg ${type}">${msg}</span>
-  `;
+  entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
   
   container.insertBefore(entry, container.firstChild);
+  while (container.children.length > 50) container.removeChild(container.lastChild);
   
-  // Keep max 50 entries
-  while (container.children.length > 50) {
-    container.removeChild(container.lastChild);
-  }
-  
-  // Also log to console for debugging
   console.log(`[TRENCH ${type.toUpperCase()}] ${msg}`);
 }
 
 function clearLogs() {
-  document.getElementById('logContent').innerHTML = `
-    <div class="log-entry">
-      <span class="log-time">${new Date().toLocaleTimeString()}</span>
-      <span class="log-msg info">Logs cleared</span>
-    </div>
-  `;
+  document.getElementById('logContent').innerHTML = `<div class="log-entry"><span class="log-time">${new Date().toLocaleTimeString()}</span><span class="log-msg info">Logs cleared</span></div>`;
 }
 
-// Initialize on load
 window.addEventListener('load', init);
 </script>
 </body>
