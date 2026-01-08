@@ -72,7 +72,6 @@ app.get('/api/coins', async (req, res) => {
             });
             console.log(`✅ Birdeye PRO: ${tokens.length} tokens (PAID PLAN)`);
           }
-        }
         } else {
           console.log(`❌ Birdeye failed: HTTP ${birdeyeResponse.status} - ${birdeyeResponse.statusText}`);
           const errorText = await birdeyeResponse.text();
@@ -113,9 +112,8 @@ app.get('/api/coins', async (req, res) => {
           });
           console.log(`✅ DexScreener: ${tokens.length} tokens`);
         }
-        } else {
-          console.log(`❌ DexScreener failed: HTTP ${dexResponse.status} - ${dexResponse.statusText}`);
-        }
+      } else {
+        console.log(`❌ DexScreener failed: HTTP ${dexResponse.status} - ${dexResponse.statusText}`);
       }
     } catch (e) {
       console.log('❌ DexScreener failed:', e.message);
@@ -154,9 +152,8 @@ app.get('/api/coins', async (req, res) => {
           });
           console.log(`✅ GeckoTerminal: ${tokens.length} tokens`);
         }
-        } else {
-          console.log(`❌ GeckoTerminal failed: HTTP ${geckoResponse.status} - ${geckoResponse.statusText}`);
-        }
+      } else {
+        console.log(`❌ GeckoTerminal failed: HTTP ${geckoResponse.status} - ${geckoResponse.statusText}`);
       }
     } catch (e) {
       console.log('❌ GeckoTerminal failed:', e.message);
@@ -201,9 +198,8 @@ app.get('/api/coins', async (req, res) => {
           });
           console.log(`✅ PumpFun: ${tokens.length} tokens`);
         }
-        } else {
-          console.log(`❌ PumpFun failed: HTTP ${pumpResponse.status} - ${pumpResponse.statusText}`);
-        }
+      } else {
+        console.log(`❌ PumpFun failed: HTTP ${pumpResponse.status} - ${pumpResponse.statusText}`);
       }
     } catch (e) {
       console.log('❌ PumpFun failed:', e.message);
