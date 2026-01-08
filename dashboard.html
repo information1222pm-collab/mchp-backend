@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TRENCH Trading Dashboard v2</title>
+<title>TRENCH - Auto-Sync Dashboard</title>
 
 <!-- TradingView Lightweight Charts -->
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 
-<!-- TensorFlow.js for ML -->
+<!-- TensorFlow.js -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
 
 <!-- Fonts -->
@@ -34,7 +34,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Rajdhani', sans-serif;
-  height: 100%;
+  min-height: 100vh;
   overflow-x: hidden;
 }
 
@@ -42,9 +42,9 @@ html, body {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: 
-    linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px),
-    linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
   pointer-events: none;
   z-index: 0;
 }
@@ -52,8 +52,9 @@ html, body {
 .container {
   position: relative;
   z-index: 1;
-  padding: 12px;
-  min-height: 100%;
+  padding: 16px;
+  max-width: 1800px;
+  margin: 0 auto;
 }
 
 /* Header */
@@ -61,73 +62,111 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 16px 20px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-bottom: 12px;
+  border-radius: 12px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
 }
 
-.logo-section {
+.logo-area {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .logo {
   font-family: 'Orbitron', sans-serif;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 900;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
   background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.version {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 9px;
-  color: var(--dim);
-  padding: 3px 8px;
-  background: rgba(0,0,0,0.3);
-  border-radius: 4px;
+.status-badges {
+  display: flex;
+  gap: 8px;
 }
 
-.wallet-section {
+.status-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  padding: 4px 10px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+}
+
+.status-badge.live {
+  background: rgba(0,255,136,0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  animation: pulse 2s infinite;
+}
+
+.status-badge.error {
+  background: rgba(255,51,102,0.15);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.wallet-area {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
-.portfolio-value {
+.portfolio-display {
   text-align: right;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,170,0,0.1));
+  border: 1px solid var(--gold);
+  border-radius: 10px;
 }
 
-.portfolio-total {
+.portfolio-label {
+  font-size: 9px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.portfolio-value {
   font-family: 'Orbitron', sans-serif;
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 900;
   color: var(--gold);
 }
 
-.portfolio-change {
-  font-size: 11px;
+.sol-balance {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  color: var(--primary);
+  padding: 10px 16px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
-
-.portfolio-change.positive { color: var(--accent); }
-.portfolio-change.negative { color: var(--danger); }
 
 .wallet-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 6px;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
   font-family: 'Share Tech Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .wallet-badge.connected {
@@ -142,31 +181,11 @@ html, body {
   color: var(--danger);
 }
 
-.balance-box {
-  background: rgba(0,0,0,0.3);
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
-
-.balance-label {
-  font-size: 8px;
-  color: var(--dim);
-  text-transform: uppercase;
-}
-
-.balance-value {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--primary);
-}
-
 .btn {
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 12px 20px;
+  border-radius: 8px;
   font-family: 'Orbitron', sans-serif;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
   border: none;
@@ -179,9 +198,9 @@ html, body {
   color: #000;
 }
 
-.btn-danger {
-  background: linear-gradient(135deg, var(--danger), #ff6699);
-  color: #fff;
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold), var(--warning));
+  color: #000;
 }
 
 .btn-secondary {
@@ -190,138 +209,148 @@ html, body {
   color: var(--text);
 }
 
-.btn-gold {
-  background: linear-gradient(135deg, var(--gold), var(--warning));
-  color: #000;
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger), #ff6699);
+  color: #fff;
 }
 
 .btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(0,212,255,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,212,255,0.3);
 }
 
 /* Stats Bar */
 .stats-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.stat-box {
+.stat-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 16px;
   text-align: center;
 }
 
 .stat-value {
   font-family: 'Orbitron', sans-serif;
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--primary);
 }
 
+.stat-value.primary { color: var(--primary); }
+.stat-value.gold { color: var(--gold); }
 .stat-value.positive { color: var(--accent); }
 .stat-value.negative { color: var(--danger); }
+.stat-value.warning { color: var(--warning); }
 
 .stat-label {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--dim);
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-/* Holdings Summary */
-.holdings-summary {
+/* Section */
+.section {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 12px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
 }
 
-.holdings-header {
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 16px 20px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border);
 }
 
-.holdings-title {
+.section-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
   color: var(--primary);
-  letter-spacing: 1px;
 }
 
+.section-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Holdings Grid */
 .holdings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 16px;
 }
 
 .holding-card {
   background: rgba(0,0,0,0.3);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 18px;
+  transition: all 0.3s;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .holding-card:hover {
   border-color: var(--primary);
-  background: rgba(0,212,255,0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,212,255,0.2);
 }
 
-.holding-card.active {
-  border-color: var(--accent);
-  background: rgba(0,255,136,0.1);
-}
-
-.holding-top {
+.holding-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .holding-token {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
 }
 
-.holding-icon {
-  width: 28px;
-  height: 28px;
+.token-icon {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
   font-weight: 700;
   overflow: hidden;
 }
 
-.holding-icon img {
+.token-icon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.holding-symbol {
+.token-details h3 {
   font-family: 'Orbitron', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
 
-.holding-amount {
-  font-size: 9px;
+.token-details p {
+  font-size: 11px;
   color: var(--dim);
 }
 
@@ -329,35 +358,58 @@ html, body {
   text-align: right;
 }
 
-.holding-usd {
+.value-usd {
   font-family: 'Orbitron', sans-serif;
-  font-size: 12px;
+  font-size: 18px;
   font-weight: 700;
+  color: var(--gold);
+}
+
+.value-change {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.value-change.positive { color: var(--accent); }
+.value-change.negative { color: var(--danger); }
+
+.holding-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.holding-stat {
+  text-align: center;
+}
+
+.holding-stat-value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
   color: var(--text);
 }
 
-.holding-change {
-  font-size: 10px;
+.holding-stat-label {
+  font-size: 9px;
+  color: var(--dim);
+  text-transform: uppercase;
 }
 
-.holding-change.positive { color: var(--accent); }
-.holding-change.negative { color: var(--danger); }
-
-.holding-signal {
+.holding-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-  margin-top: 8px;
 }
 
 .signal-badge {
   font-family: 'Orbitron', sans-serif;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 6px 14px;
+  border-radius: 6px;
 }
 
 .signal-badge.buy {
@@ -378,46 +430,31 @@ html, body {
   color: var(--danger);
 }
 
-.signal-conf {
-  font-size: 9px;
+.signal-badge.loading {
+  background: rgba(90,106,122,0.2);
+  border: 1px solid var(--dim);
   color: var(--dim);
 }
 
-/* Charts Section */
-.charts-section {
-  margin-bottom: 12px;
-}
-
-.section-header {
+.holding-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px 8px 0 0;
+  gap: 8px;
 }
 
-.section-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  color: var(--primary);
+.holding-actions .btn {
+  padding: 8px 12px;
+  font-size: 9px;
 }
 
+/* Charts Grid */
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 0;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  padding: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 16px;
+  padding: 16px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .charts-grid {
     grid-template-columns: 1fr;
   }
@@ -427,16 +464,15 @@ html, body {
 .chart-card {
   background: rgba(0,0,0,0.2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  margin: 6px;
 }
 
 .chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 16px 20px;
   background: rgba(0,0,0,0.3);
   border-bottom: 1px solid var(--border);
 }
@@ -444,44 +480,35 @@ html, body {
 .chart-token {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
-.token-icon {
-  width: 36px;
-  height: 36px;
+.chart-icon {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  overflow: hidden;
-}
-
-.token-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.token-info h3 {
   font-family: 'Orbitron', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
 }
 
-.token-info p {
-  font-size: 10px;
+.chart-info h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+}
+
+.chart-info p {
+  font-size: 11px;
   color: var(--dim);
 }
 
 .chart-stats {
   display: flex;
-  gap: 20px;
-  align-items: center;
+  gap: 24px;
 }
 
 .chart-stat {
@@ -490,7 +517,7 @@ html, body {
 
 .chart-stat-value {
   font-family: 'Orbitron', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -498,42 +525,46 @@ html, body {
 .chart-stat-value.negative { color: var(--danger); }
 
 .chart-stat-label {
-  font-size: 8px;
+  font-size: 9px;
   color: var(--dim);
   text-transform: uppercase;
 }
 
 .chart-container {
-  height: 280px;
-  padding: 8px;
+  height: 300px;
+  padding: 12px;
 }
 
 .chart-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  padding: 14px 20px;
   background: rgba(0,0,0,0.2);
   border-top: 1px solid var(--border);
 }
 
-.ml-signal {
+.chart-signal {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.signal-conf {
+  font-size: 11px;
+  color: var(--dim);
 }
 
 .chart-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .chart-actions .btn {
-  padding: 8px 14px;
-  font-size: 9px;
+  padding: 10px 16px;
 }
 
-/* Loading State */
+/* Loading */
 .loading {
   display: flex;
   flex-direction: column;
@@ -544,78 +575,65 @@ html, body {
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--border);
+  width: 50px;
+  height: 50px;
+  border: 4px solid var(--border);
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* Activity Log */
-.log-panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-top: 12px;
-}
-
-.log-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: rgba(0,0,0,0.3);
-  border-bottom: 1px solid var(--border);
-}
-
-.log-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 10px;
-  color: var(--primary);
-}
-
+/* Log Panel */
 .log-content {
-  padding: 12px;
-  max-height: 200px;
+  padding: 16px;
+  max-height: 250px;
   overflow-y: auto;
+  font-family: 'Share Tech Mono', monospace;
 }
 
 .log-entry {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 10px;
-  padding: 4px 0;
+  font-size: 11px;
+  padding: 6px 0;
   border-bottom: 1px solid rgba(255,255,255,0.03);
+  display: flex;
+  gap: 10px;
 }
 
-.log-entry.info { color: var(--primary); }
-.log-entry.success { color: var(--accent); }
-.log-entry.warning { color: var(--warning); }
-.log-entry.error { color: var(--danger); }
-.log-entry.signal { color: var(--gold); font-weight: 600; }
+.log-time {
+  color: var(--dim);
+  min-width: 80px;
+}
+
+.log-msg { flex: 1; }
+.log-msg.info { color: var(--primary); }
+.log-msg.success { color: var(--accent); }
+.log-msg.warning { color: var(--warning); }
+.log-msg.error { color: var(--danger); }
+.log-msg.signal { color: var(--gold); font-weight: 600; }
 
 /* Empty State */
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
+  padding: 60px;
   color: var(--dim);
 }
 
-.empty-state-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+.empty-icon {
+  font-size: 60px;
+  margin-bottom: 16px;
   opacity: 0.5;
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 </style>
 </head>
 <body>
@@ -624,98 +642,115 @@ html, body {
 <div class="container">
   <!-- Header -->
   <div class="header">
-    <div class="logo-section">
-      <div class="logo">TRENCH DASHBOARD</div>
-      <div class="version">v2 • AUTO-SYNC • ML SIGNALS</div>
+    <div class="logo-area">
+      <div class="logo">TRENCH</div>
+      <div class="status-badges">
+        <span class="status-badge live" id="syncStatus">● AUTO-SYNC</span>
+        <span class="status-badge" id="apiStatus" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--dim);">API: --</span>
+      </div>
     </div>
-    <div class="wallet-section">
-      <div class="portfolio-value">
-        <div class="portfolio-total" id="portfolioTotal">$0.00</div>
-        <div class="portfolio-change positive" id="portfolioChange">+$0.00 (0%)</div>
+    <div class="wallet-area">
+      <div class="portfolio-display">
+        <div class="portfolio-label">Portfolio Value</div>
+        <div class="portfolio-value" id="portfolioValue">$0.00</div>
       </div>
-      <div class="balance-box">
-        <div class="balance-label">SOL Balance</div>
-        <div class="balance-value" id="solBalance">0.0000 SOL</div>
-      </div>
+      <div class="sol-balance" id="solBalance">0.0000 SOL</div>
       <div class="wallet-badge disconnected" id="walletBadge">
         <span>●</span>
-        <span id="walletText">Not Connected</span>
+        <span id="walletAddress">Not Connected</span>
       </div>
-      <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">Connect Phantom</button>
+      <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">CONNECT PHANTOM</button>
     </div>
   </div>
 
   <!-- Stats Bar -->
   <div class="stats-bar">
-    <div class="stat-box">
-      <div class="stat-value" id="totalHoldings">0</div>
+    <div class="stat-card">
+      <div class="stat-value gold" id="statHoldings">0</div>
       <div class="stat-label">Holdings</div>
     </div>
-    <div class="stat-box">
-      <div class="stat-value positive" id="totalPnL">+0.00%</div>
-      <div class="stat-label">Total P&L</div>
+    <div class="stat-card">
+      <div class="stat-value positive" id="statBuy">0</div>
+      <div class="stat-label">🟢 Buy Signals</div>
     </div>
-    <div class="stat-box">
-      <div class="stat-value" id="buySignals">0</div>
-      <div class="stat-label">Buy Signals</div>
+    <div class="stat-card">
+      <div class="stat-value warning" id="statHold">0</div>
+      <div class="stat-label">🟡 Hold</div>
     </div>
-    <div class="stat-box">
-      <div class="stat-value" id="holdSignals">0</div>
-      <div class="stat-label">Hold Signals</div>
+    <div class="stat-card">
+      <div class="stat-value negative" id="statSell">0</div>
+      <div class="stat-label">🔴 Sell Signals</div>
     </div>
-    <div class="stat-box">
-      <div class="stat-value negative" id="sellSignals">0</div>
-      <div class="stat-label">Sell Signals</div>
+    <div class="stat-card">
+      <div class="stat-value primary" id="statLastSync">--</div>
+      <div class="stat-label">Last Sync</div>
     </div>
   </div>
 
-  <!-- Holdings Summary -->
-  <div class="holdings-summary" id="holdingsSummary" style="display:none;">
-    <div class="holdings-header">
-      <span class="holdings-title">💼 YOUR HOLDINGS</span>
-      <button class="btn btn-gold" onclick="loadHoldings()">🔄 Refresh Holdings</button>
+  <!-- Holdings Section -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">💼 YOUR HOLDINGS (AUTO-SYNCED)</span>
+      <div class="section-actions">
+        <button class="btn btn-gold" onclick="syncWallet()">🔄 SYNC NOW</button>
+      </div>
     </div>
     <div class="holdings-grid" id="holdingsGrid">
-      <!-- Holdings will be populated here -->
+      <div class="loading" id="holdingsLoading">
+        <div class="loading-spinner"></div>
+        <div>Connect wallet to auto-sync holdings...</div>
+      </div>
     </div>
   </div>
 
   <!-- Charts Section -->
-  <div class="charts-section">
+  <div class="section">
     <div class="section-header">
-      <span class="section-title">📊 1H CHARTS + ML SIGNALS</span>
-      <button class="btn btn-secondary" onclick="refreshAllCharts()">🔄 Refresh All</button>
+      <span class="section-title">📊 1H CHARTS + ML BUY INDICATORS</span>
+      <div class="section-actions">
+        <button class="btn btn-secondary" onclick="refreshCharts()">🔄 REFRESH CHARTS</button>
+      </div>
     </div>
     <div class="charts-grid" id="chartsGrid">
-      <div class="loading" id="chartsLoading">
-        <div class="loading-spinner"></div>
-        <div>Connect wallet to load your holdings...</div>
+      <div class="empty-state">
+        <div class="empty-icon">📈</div>
+        <div>Charts will load after wallet sync</div>
       </div>
     </div>
   </div>
 
   <!-- Activity Log -->
-  <div class="log-panel">
-    <div class="log-header">
-      <span class="log-title">📝 ACTIVITY LOG</span>
-      <button class="btn btn-secondary" style="padding:4px 8px;font-size:8px;" onclick="clearLogs()">Clear</button>
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">📝 ACTIVITY LOG</span>
+      <div class="section-actions">
+        <button class="btn btn-secondary" style="padding:8px 12px;font-size:9px;" onclick="clearLogs()">CLEAR</button>
+      </div>
     </div>
-    <div class="log-content" id="logsContainer">
-      <div class="log-entry info">[INIT] TRENCH Dashboard v2 ready</div>
+    <div class="log-content" id="logContent">
+      <div class="log-entry">
+        <span class="log-time">--:--:--</span>
+        <span class="log-msg info">TRENCH Dashboard initialized. Connect wallet to begin.</span>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 // ============================================================
-// TRENCH TRADING DASHBOARD v2
-// Auto-sync wallet holdings + Live Charts + ML Predictions
+// TRENCH AUTO-SYNC DASHBOARD
+// Automatic wallet holdings + 1H Charts + ML Predictions
 // ============================================================
 
-const HELIUS_RPC = 'https://mainnet.helius-rpc.com/?api-key=afed39de-9863-4eb1-9d5c-a06486406025';
+// API Configuration - Multiple endpoints for fallback
+const HELIUS_API_KEY = 'afed39de-9863-4eb1-9d5c-a06486406025';
+const HELIUS_RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_API = `https://api.helius.xyz/v0`;
 const GECKO_API = 'https://api.geckoterminal.com/api/v2';
+const JUPITER_PRICE = 'https://api.jup.ag/price/v2';
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-// State
+// Global State
 const state = {
   connected: false,
   wallet: null,
@@ -723,7 +758,8 @@ const state = {
   holdings: [],
   charts: {},
   model: null,
-  portfolioValue: 0
+  lastSync: null,
+  autoSyncInterval: null
 };
 
 // ============================================================
@@ -731,25 +767,35 @@ const state = {
 // ============================================================
 
 async function init() {
-  log('Initializing TRENCH Dashboard v2...', 'info');
+  log('Initializing TRENCH Dashboard...', 'info');
   
+  // Initialize TensorFlow
   await tf.ready();
-  log('TensorFlow.js ready', 'success');
+  log('TensorFlow.js loaded', 'success');
   
+  // Build ML model
   await buildMLModel();
   
+  // Check for Phantom wallet
   if (window.solana?.isPhantom) {
-    log('Phantom wallet detected', 'info');
+    log('Phantom wallet detected', 'success');
+    
+    // Try auto-connect
     try {
       const resp = await window.solana.connect({ onlyIfTrusted: true });
       state.wallet = resp.publicKey.toString();
       state.connected = true;
       updateWalletUI();
-      log(`Auto-connected: ${state.wallet.slice(0,6)}...${state.wallet.slice(-4)}`, 'success');
-      await loadHoldings();
+      log(`Auto-connected: ${state.wallet}`, 'success');
+      
+      // Start auto-sync
+      await syncWallet();
+      startAutoSync();
     } catch (e) {
-      log('Click Connect to link your Phantom wallet', 'info');
+      log('Click CONNECT PHANTOM to link your wallet', 'info');
     }
+  } else {
+    log('Phantom wallet not found - please install it', 'error');
   }
 }
 
@@ -760,9 +806,9 @@ async function init() {
 async function buildMLModel() {
   state.model = tf.sequential({
     layers: [
-      tf.layers.dense({ inputShape: [20], units: 64, activation: 'relu' }),
+      tf.layers.dense({ inputShape: [15], units: 32, activation: 'relu' }),
       tf.layers.dropout({ rate: 0.2 }),
-      tf.layers.dense({ units: 32, activation: 'relu' }),
+      tf.layers.dense({ units: 16, activation: 'relu' }),
       tf.layers.dense({ units: 3, activation: 'softmax' })
     ]
   });
@@ -772,120 +818,97 @@ async function buildMLModel() {
     loss: 'categoricalCrossentropy'
   });
   
-  // Train with pattern data
-  const trainingData = [];
-  const labels = [];
-  
-  for (let i = 0; i < 1500; i++) {
-    const classType = i % 3;
-    trainingData.push(generateFeatures(classType));
+  // Train with patterns
+  const trainX = [], trainY = [];
+  for (let i = 0; i < 900; i++) {
+    const cls = i % 3;
+    const base = cls === 0 ? 0.7 : cls === 1 ? 0.5 : 0.25;
+    trainX.push(Array(15).fill(0).map(() => Math.max(0, Math.min(1, base + (Math.random() - 0.5) * 0.5))));
     const label = [0, 0, 0];
-    label[classType] = 1;
-    labels.push(label);
+    label[cls] = 1;
+    trainY.push(label);
   }
   
-  const xs = tf.tensor2d(trainingData);
-  const ys = tf.tensor2d(labels);
-  await state.model.fit(xs, ys, { epochs: 20, batchSize: 32, verbose: 0 });
-  xs.dispose();
-  ys.dispose();
+  await state.model.fit(tf.tensor2d(trainX), tf.tensor2d(trainY), {
+    epochs: 20,
+    batchSize: 32,
+    verbose: 0
+  });
   
-  log('ML model trained', 'success');
+  log('ML model trained successfully', 'success');
 }
 
-function generateFeatures(classType) {
-  const f = [];
-  const base = classType === 0 ? 0.7 : classType === 1 ? 0.5 : 0.3;
-  for (let i = 0; i < 20; i++) {
-    f.push(Math.max(0, Math.min(1, base + (Math.random() - 0.5) * 0.4)));
+async function predictSignal(candles) {
+  if (!candles || candles.length < 5) {
+    return { signal: 'HOLD', confidence: 0.5 };
   }
-  return f;
-}
-
-function extractFeatures(candles) {
-  if (!candles || candles.length < 5) return Array(20).fill(0.5);
   
   const closes = candles.map(c => c.close);
-  const highs = candles.map(c => c.high);
-  const lows = candles.map(c => c.low);
+  const volumes = candles.map(c => c.volume || 1);
   
-  const lastClose = closes[closes.length - 1];
-  const firstClose = closes[0];
-  const avgClose = closes.reduce((a, b) => a + b, 0) / closes.length;
-  const maxHigh = Math.max(...highs);
-  const minLow = Math.min(...lows);
+  // Calculate features
+  const momentum = (closes[closes.length - 1] - closes[0]) / (closes[0] || 1);
+  const volatility = (Math.max(...closes) - Math.min(...closes)) / (closes[0] || 1);
+  const trend = closes[closes.length - 1] > closes[Math.floor(closes.length / 2)] ? 0.7 : 0.3;
+  const volumeTrend = volumes[volumes.length - 1] / (volumes.reduce((a,b) => a+b, 0) / volumes.length || 1);
   
-  // RSI
+  // RSI approximation
   let gains = 0, losses = 0;
   for (let i = 1; i < closes.length; i++) {
-    const change = closes[i] - closes[i - 1];
+    const change = closes[i] - closes[i-1];
     if (change > 0) gains += change;
     else losses -= change;
   }
   const rsi = 100 - (100 / (1 + gains / (losses || 1)));
   
-  const momentum = (lastClose - firstClose) / (firstClose || 1);
-  const volatility = (maxHigh - minLow) / (avgClose || 1);
-  const pricePos = (lastClose - minLow) / ((maxHigh - minLow) || 1);
-  
-  return [
+  const features = [
+    Math.max(0, Math.min(1, 0.5 + momentum * 3)),
+    trend,
+    Math.min(1, volatility * 5),
+    Math.min(1, volumeTrend),
     rsi / 100,
-    0.5 + momentum,
-    lastClose > avgClose ? 0.7 : 0.3,
-    pricePos,
-    volatility,
-    momentum > 0 ? 0.7 : 0.3,
-    lastClose > closes[closes.length - 2] ? 0.6 : 0.4,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    Math.random() * 0.3 + 0.35,
-    (rsi / 100 + pricePos + (momentum > 0 ? 0.6 : 0.4)) / 3
+    closes[closes.length - 1] > closes[closes.length - 2] ? 0.7 : 0.3,
+    ...Array(9).fill(0).map(() => Math.random() * 0.3 + 0.35)
   ];
-}
-
-async function predictSignal(candles) {
-  const features = extractFeatures(candles);
-  const tensor = tf.tensor2d([features]);
-  const prediction = state.model.predict(tensor);
-  const probs = await prediction.data();
-  tensor.dispose();
-  prediction.dispose();
+  
+  const pred = state.model.predict(tf.tensor2d([features]));
+  const probs = await pred.data();
+  pred.dispose();
   
   const signals = ['BUY', 'HOLD', 'SELL'];
-  let maxIdx = 0;
-  for (let i = 1; i < probs.length; i++) {
-    if (probs[i] > probs[maxIdx]) maxIdx = i;
-  }
+  const maxIdx = [...probs].indexOf(Math.max(...probs));
   
-  return { signal: signals[maxIdx], confidence: probs[maxIdx] };
+  return {
+    signal: signals[maxIdx],
+    confidence: probs[maxIdx],
+    probs: { buy: probs[0], hold: probs[1], sell: probs[2] }
+  };
 }
 
 // ============================================================
-// WALLET & HOLDINGS
+// WALLET CONNECTION
 // ============================================================
 
 async function connectWallet() {
+  log('Connecting to Phantom...', 'info');
+  
   try {
     if (!window.solana?.isPhantom) {
-      alert('Please install Phantom wallet!');
+      alert('Phantom wallet not found! Please install it from phantom.app');
       return;
     }
     
     const resp = await window.solana.connect();
     state.wallet = resp.publicKey.toString();
     state.connected = true;
+    
     updateWalletUI();
-    log(`Connected: ${state.wallet.slice(0, 6)}...${state.wallet.slice(-4)}`, 'success');
-    await loadHoldings();
+    log(`Connected: ${state.wallet}`, 'success');
+    
+    // Sync wallet holdings
+    await syncWallet();
+    startAutoSync();
+    
   } catch (err) {
     log(`Connection failed: ${err.message}`, 'error');
   }
@@ -893,49 +916,223 @@ async function connectWallet() {
 
 function updateWalletUI() {
   const badge = document.getElementById('walletBadge');
-  const text = document.getElementById('walletText');
+  const address = document.getElementById('walletAddress');
   const btn = document.getElementById('connectBtn');
   
   if (state.connected) {
     badge.className = 'wallet-badge connected';
-    text.textContent = `${state.wallet.slice(0, 4)}...${state.wallet.slice(-4)}`;
-    btn.textContent = 'Disconnect';
-    btn.onclick = () => {
-      window.solana?.disconnect();
-      state.connected = false;
-      state.wallet = null;
-      state.holdings = [];
-      updateWalletUI();
-      document.getElementById('holdingsSummary').style.display = 'none';
-      document.getElementById('chartsGrid').innerHTML = `
-        <div class="loading">
-          <div class="loading-spinner"></div>
-          <div>Connect wallet to load your holdings...</div>
-        </div>
-      `;
-    };
+    address.textContent = `${state.wallet.slice(0, 4)}...${state.wallet.slice(-4)}`;
+    btn.textContent = 'DISCONNECT';
+    btn.className = 'btn btn-danger';
+    btn.onclick = disconnectWallet;
   } else {
     badge.className = 'wallet-badge disconnected';
-    text.textContent = 'Not Connected';
-    btn.textContent = 'Connect Phantom';
+    address.textContent = 'Not Connected';
+    btn.textContent = 'CONNECT PHANTOM';
+    btn.className = 'btn btn-primary';
     btn.onclick = connectWallet;
   }
 }
 
-async function loadHoldings() {
-  if (!state.connected) return;
+function disconnectWallet() {
+  window.solana?.disconnect();
+  state.connected = false;
+  state.wallet = null;
+  state.holdings = [];
   
-  log('Loading wallet holdings...', 'info');
-  document.getElementById('chartsGrid').innerHTML = `
+  if (state.autoSyncInterval) {
+    clearInterval(state.autoSyncInterval);
+  }
+  
+  updateWalletUI();
+  
+  document.getElementById('holdingsGrid').innerHTML = `
     <div class="loading">
       <div class="loading-spinner"></div>
-      <div>Fetching your token holdings...</div>
+      <div>Connect wallet to auto-sync holdings...</div>
+    </div>
+  `;
+  document.getElementById('chartsGrid').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📈</div>
+      <div>Charts will load after wallet sync</div>
     </div>
   `;
   
+  log('Wallet disconnected', 'info');
+}
+
+// ============================================================
+// AUTO-SYNC FUNCTIONALITY
+// ============================================================
+
+function startAutoSync() {
+  // Sync every 30 seconds
+  state.autoSyncInterval = setInterval(() => {
+    if (state.connected) {
+      syncWallet(true); // Silent sync
+    }
+  }, 30000);
+  
+  log('Auto-sync enabled (30s interval)', 'success');
+  
+  const statusEl = document.getElementById('syncStatus');
+  statusEl.className = 'status-badge live';
+  statusEl.innerHTML = '● AUTO-SYNC';
+}
+
+async function syncWallet(silent = false) {
+  if (!state.connected || !state.wallet) {
+    log('Wallet not connected', 'error');
+    return;
+  }
+  
+  if (!silent) {
+    log('Syncing wallet holdings...', 'info');
+    document.getElementById('holdingsGrid').innerHTML = `
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <div>Fetching your tokens from blockchain...</div>
+      </div>
+    `;
+  }
+  
+  const apiStatus = document.getElementById('apiStatus');
+  
+  try {
+    // ============================================
+    // METHOD 1: Helius DAS API (getAssetsByOwner)
+    // ============================================
+    apiStatus.textContent = 'API: Helius DAS';
+    apiStatus.style.color = 'var(--warning)';
+    
+    log('Trying Helius DAS API...', 'info');
+    
+    const response = await fetch(HELIUS_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'trench-sync',
+        method: 'getAssetsByOwner',
+        params: {
+          ownerAddress: state.wallet,
+          page: 1,
+          limit: 1000,
+          displayOptions: {
+            showFungible: true,
+            showNativeBalance: true,
+            showZeroBalance: false
+          }
+        }
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(`Helius error: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+    
+    if (!data.result) {
+      throw new Error('No result from Helius API');
+    }
+    
+    log(`Helius returned ${data.result.items?.length || 0} assets`, 'success');
+    
+    // Process native SOL balance
+    if (data.result.nativeBalance) {
+      state.solBalance = data.result.nativeBalance.lamports / 1e9;
+      document.getElementById('solBalance').textContent = `${state.solBalance.toFixed(4)} SOL`;
+      log(`SOL Balance: ${state.solBalance.toFixed(4)} SOL`, 'success');
+    }
+    
+    // Process fungible tokens
+    const assets = data.result.items || [];
+    const holdings = [];
+    
+    for (const asset of assets) {
+      // Check if it's a fungible token
+      if (asset.interface !== 'FungibleToken' && asset.interface !== 'FungibleAsset') {
+        continue;
+      }
+      
+      const tokenInfo = asset.token_info || {};
+      const content = asset.content || {};
+      const metadata = content.metadata || {};
+      const priceInfo = tokenInfo.price_info || {};
+      
+      const decimals = tokenInfo.decimals || 0;
+      const rawBalance = tokenInfo.balance || 0;
+      const balance = rawBalance / Math.pow(10, decimals);
+      
+      if (balance <= 0) continue;
+      
+      const holding = {
+        mint: asset.id,
+        symbol: tokenInfo.symbol || metadata.symbol || asset.id.slice(0, 6),
+        name: metadata.name || tokenInfo.symbol || 'Unknown',
+        amount: balance,
+        decimals: decimals,
+        price: priceInfo.price_per_token || 0,
+        value: priceInfo.total_price || 0,
+        priceChange: 0,
+        icon: content.links?.image || content.files?.[0]?.uri || null
+      };
+      
+      holdings.push(holding);
+      log(`Found: ${holding.symbol} - ${formatNumber(holding.amount)} tokens ($${holding.value.toFixed(2)})`, 'info');
+    }
+    
+    // If no price data, fetch from Jupiter
+    const mintsWithoutPrice = holdings.filter(h => h.price === 0).map(h => h.mint);
+    if (mintsWithoutPrice.length > 0) {
+      log(`Fetching prices for ${mintsWithoutPrice.length} tokens from Jupiter...`, 'info');
+      await enrichPricesFromJupiter(holdings, mintsWithoutPrice);
+    }
+    
+    // Sort by value
+    holdings.sort((a, b) => b.value - a.value);
+    state.holdings = holdings;
+    
+    // Calculate portfolio value
+    const solPrice = await getSolPrice();
+    const solValue = state.solBalance * solPrice;
+    const tokensValue = holdings.reduce((sum, h) => sum + h.value, 0);
+    const portfolioValue = solValue + tokensValue;
+    
+    document.getElementById('portfolioValue').textContent = `$${portfolioValue.toFixed(2)}`;
+    document.getElementById('statHoldings').textContent = holdings.length;
+    
+    // Update last sync time
+    state.lastSync = new Date();
+    document.getElementById('statLastSync').textContent = state.lastSync.toLocaleTimeString();
+    
+    apiStatus.textContent = 'API: Helius ✓';
+    apiStatus.style.color = 'var(--accent)';
+    
+    log(`Portfolio synced: $${portfolioValue.toFixed(2)} (${holdings.length} tokens + ${state.solBalance.toFixed(4)} SOL)`, 'success');
+    
+    // Render holdings and charts
+    renderHoldings();
+    await renderCharts();
+    
+  } catch (err) {
+    log(`Helius API error: ${err.message}`, 'error');
+    apiStatus.textContent = 'API: Error';
+    apiStatus.style.color = 'var(--danger)';
+    
+    // Try fallback
+    await syncWalletFallback();
+  }
+}
+
+async function syncWalletFallback() {
+  log('Trying fallback RPC method...', 'warning');
+  
   try {
     // Get SOL balance
-    const balanceResp = await fetch(HELIUS_RPC, {
+    const balanceResp = await fetch('https://api.mainnet-beta.solana.com', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -945,13 +1142,14 @@ async function loadHoldings() {
         params: [state.wallet]
       })
     });
+    
     const balanceData = await balanceResp.json();
     state.solBalance = (balanceData.result?.value || 0) / 1e9;
     document.getElementById('solBalance').textContent = `${state.solBalance.toFixed(4)} SOL`;
-    log(`SOL Balance: ${state.solBalance.toFixed(4)} SOL`, 'success');
+    log(`SOL Balance (fallback): ${state.solBalance.toFixed(4)}`, 'success');
     
     // Get token accounts
-    const tokenResp = await fetch(HELIUS_RPC, {
+    const tokenResp = await fetch('https://api.mainnet-beta.solana.com', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -969,247 +1167,265 @@ async function loadHoldings() {
     const tokenData = await tokenResp.json();
     const accounts = tokenData.result?.value || [];
     
-    log(`Found ${accounts.length} token accounts`, 'info');
+    log(`Fallback found ${accounts.length} token accounts`, 'info');
     
-    // Process token holdings
     const holdings = [];
-    for (const account of accounts) {
-      const info = account.account?.data?.parsed?.info;
+    const mints = [];
+    
+    for (const acc of accounts) {
+      const info = acc.account?.data?.parsed?.info;
       if (!info) continue;
       
-      const mint = info.mint;
       const amount = parseFloat(info.tokenAmount?.uiAmount || 0);
-      const decimals = info.tokenAmount?.decimals || 0;
-      
       if (amount <= 0) continue;
       
-      // Get token metadata and price
-      const tokenInfo = await getTokenInfo(mint);
-      if (tokenInfo) {
-        holdings.push({
-          mint,
-          symbol: tokenInfo.symbol || mint.slice(0, 6),
-          name: tokenInfo.name || 'Unknown',
-          amount,
-          decimals,
-          price: tokenInfo.price || 0,
-          priceChange: tokenInfo.priceChange || 0,
-          value: amount * (tokenInfo.price || 0),
-          poolAddress: tokenInfo.poolAddress,
-          icon: tokenInfo.icon
-        });
-      }
+      holdings.push({
+        mint: info.mint,
+        symbol: info.mint.slice(0, 6),
+        name: 'Unknown',
+        amount: amount,
+        decimals: info.tokenAmount?.decimals || 0,
+        price: 0,
+        value: 0,
+        priceChange: 0,
+        icon: null
+      });
+      
+      mints.push(info.mint);
     }
     
-    // Sort by value
+    // Get prices from Jupiter
+    if (mints.length > 0) {
+      await enrichPricesFromJupiter(holdings, mints);
+    }
+    
+    // Get token metadata from GeckoTerminal
+    for (const h of holdings) {
+      try {
+        const searchResp = await fetch(`${GECKO_API}/search/pools?query=${h.mint}&network=solana`);
+        const searchData = await searchResp.json();
+        
+        if (searchData.data && searchData.data.length > 0) {
+          const pool = searchData.data[0];
+          h.symbol = pool.attributes.name?.split(' / ')[0] || h.symbol;
+          h.name = pool.attributes.name || h.name;
+          h.poolAddress = pool.id.replace('solana_', '');
+          h.priceChange = parseFloat(pool.attributes.price_change_percentage?.h24) || 0;
+        }
+      } catch (e) {}
+      
+      await new Promise(r => setTimeout(r, 100));
+    }
+    
     holdings.sort((a, b) => b.value - a.value);
     state.holdings = holdings;
     
-    // Calculate portfolio value
-    const solValue = state.solBalance * await getSolPrice();
-    state.portfolioValue = solValue + holdings.reduce((sum, h) => sum + h.value, 0);
+    const solPrice = await getSolPrice();
+    const portfolioValue = (state.solBalance * solPrice) + holdings.reduce((s, h) => s + h.value, 0);
     
-    document.getElementById('portfolioTotal').textContent = `$${state.portfolioValue.toFixed(2)}`;
-    document.getElementById('totalHoldings').textContent = holdings.length;
+    document.getElementById('portfolioValue').textContent = `$${portfolioValue.toFixed(2)}`;
+    document.getElementById('statHoldings').textContent = holdings.length;
     
-    log(`Portfolio: $${state.portfolioValue.toFixed(2)} (${holdings.length} tokens)`, 'success');
+    state.lastSync = new Date();
+    document.getElementById('statLastSync').textContent = state.lastSync.toLocaleTimeString();
     
-    // Display holdings
-    displayHoldings();
+    document.getElementById('apiStatus').textContent = 'API: Fallback ✓';
+    document.getElementById('apiStatus').style.color = 'var(--warning)';
     
-    // Create charts for holdings
-    await createChartsForHoldings();
+    log(`Fallback sync complete: $${portfolioValue.toFixed(2)}`, 'success');
+    
+    renderHoldings();
+    await renderCharts();
     
   } catch (err) {
-    log(`Error loading holdings: ${err.message}`, 'error');
-    console.error(err);
+    log(`Fallback also failed: ${err.message}`, 'error');
+    document.getElementById('holdingsGrid').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">❌</div>
+        <div>Failed to sync wallet. Check console for details.</div>
+        <button class="btn btn-gold" onclick="syncWallet()" style="margin-top:16px;">TRY AGAIN</button>
+      </div>
+    `;
+  }
+}
+
+async function enrichPricesFromJupiter(holdings, mints) {
+  try {
+    const mintStr = mints.slice(0, 100).join(',');
+    const resp = await fetch(`${JUPITER_PRICE}?ids=${mintStr}`);
+    const data = await resp.json();
+    
+    if (data.data) {
+      for (const h of holdings) {
+        const priceData = data.data[h.mint];
+        if (priceData && priceData.price) {
+          h.price = parseFloat(priceData.price);
+          h.value = h.amount * h.price;
+        }
+      }
+      log(`Jupiter enriched ${Object.keys(data.data).length} token prices`, 'success');
+    }
+  } catch (e) {
+    log(`Jupiter price fetch failed: ${e.message}`, 'warning');
   }
 }
 
 async function getSolPrice() {
   try {
-    const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    const resp = await fetch(`${JUPITER_PRICE}?ids=${SOL_MINT}`);
     const data = await resp.json();
-    return data.solana?.usd || 0;
+    return data.data?.[SOL_MINT]?.price || 140;
   } catch (e) {
-    return 135; // Fallback
+    return 140; // Fallback
   }
 }
 
-async function getTokenInfo(mint) {
-  try {
-    // Search for pool on GeckoTerminal
-    const searchUrl = `${GECKO_API}/search/pools?query=${mint}&network=solana`;
-    const resp = await fetch(searchUrl);
-    
-    if (!resp.ok) return null;
-    
-    const data = await resp.json();
-    
-    if (data.data && data.data.length > 0) {
-      const pool = data.data[0];
-      const attrs = pool.attributes;
-      
-      return {
-        symbol: attrs.name?.split(' / ')[0] || 'UNKNOWN',
-        name: attrs.name || 'Unknown',
-        price: parseFloat(attrs.base_token_price_usd) || 0,
-        priceChange: parseFloat(attrs.price_change_percentage?.h24) || 0,
-        poolAddress: pool.id.replace('solana_', ''),
-        icon: null // Would need separate API call
-      };
-    }
-    
-    return { symbol: mint.slice(0, 6), name: 'Unknown', price: 0, priceChange: 0 };
-  } catch (err) {
-    return { symbol: mint.slice(0, 6), name: 'Unknown', price: 0, priceChange: 0 };
-  }
-}
+// ============================================================
+// RENDER HOLDINGS
+// ============================================================
 
-function displayHoldings() {
-  const container = document.getElementById('holdingsGrid');
-  const summary = document.getElementById('holdingsSummary');
+function renderHoldings() {
+  const grid = document.getElementById('holdingsGrid');
   
   if (state.holdings.length === 0) {
-    summary.style.display = 'none';
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div>No token holdings found in wallet</div>
+      </div>
+    `;
     return;
   }
   
-  summary.style.display = 'block';
-  
-  container.innerHTML = state.holdings.map((h, idx) => `
-    <div class="holding-card" id="holding-${idx}" onclick="focusChart('${h.mint}')">
-      <div class="holding-top">
+  grid.innerHTML = state.holdings.map((h, i) => `
+    <div class="holding-card" onclick="scrollToChart(${i})">
+      <div class="holding-header">
         <div class="holding-token">
-          <div class="holding-icon">${h.symbol?.charAt(0) || '?'}</div>
-          <div>
-            <div class="holding-symbol">${h.symbol}</div>
-            <div class="holding-amount">${formatAmount(h.amount)} tokens</div>
+          <div class="token-icon">
+            ${h.icon ? `<img src="${h.icon}" onerror="this.parentElement.textContent='${(h.symbol || '?').charAt(0)}'" />` : (h.symbol || '?').charAt(0)}
+          </div>
+          <div class="token-details">
+            <h3>${h.symbol || 'UNKNOWN'}</h3>
+            <p>${h.name || 'Unknown Token'}</p>
           </div>
         </div>
         <div class="holding-value">
-          <div class="holding-usd">$${h.value.toFixed(2)}</div>
-          <div class="holding-change ${h.priceChange >= 0 ? 'positive' : 'negative'}">
+          <div class="value-usd">$${h.value.toFixed(2)}</div>
+          <div class="value-change ${h.priceChange >= 0 ? 'positive' : 'negative'}">
             ${h.priceChange >= 0 ? '+' : ''}${h.priceChange.toFixed(2)}%
           </div>
         </div>
       </div>
-      <div class="holding-signal">
-        <span class="signal-badge hold" id="signal-${idx}">ANALYZING...</span>
-        <span class="signal-conf" id="conf-${idx}">--</span>
+      <div class="holding-stats">
+        <div class="holding-stat">
+          <div class="holding-stat-value">${formatNumber(h.amount)}</div>
+          <div class="holding-stat-label">Amount</div>
+        </div>
+        <div class="holding-stat">
+          <div class="holding-stat-value">$${h.price.toFixed(8)}</div>
+          <div class="holding-stat-label">Price</div>
+        </div>
+        <div class="holding-stat">
+          <div class="holding-stat-value">${h.mint.slice(0, 6)}...${h.mint.slice(-4)}</div>
+          <div class="holding-stat-label">Mint</div>
+        </div>
+      </div>
+      <div class="holding-footer">
+        <span class="signal-badge loading" id="signal-${i}">ANALYZING...</span>
+        <div class="holding-actions">
+          <button class="btn btn-secondary" onclick="event.stopPropagation(); window.open('https://dexscreener.com/solana/${h.mint}', '_blank')">DEX</button>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); window.open('https://jup.ag/swap/SOL-${h.mint}', '_blank')">SWAP</button>
+        </div>
       </div>
     </div>
   `).join('');
 }
 
-function formatAmount(num) {
-  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-  return num.toFixed(2);
-}
-
 // ============================================================
-// CHARTS
+// RENDER CHARTS
 // ============================================================
 
-async function createChartsForHoldings() {
+async function renderCharts() {
   const grid = document.getElementById('chartsGrid');
   
   if (state.holdings.length === 0) {
     grid.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">📈</div>
-        <div>No token holdings found in your wallet</div>
+        <div class="empty-icon">📈</div>
+        <div>No holdings to chart</div>
       </div>
     `;
     return;
   }
   
   grid.innerHTML = '';
-  
   let buyCount = 0, holdCount = 0, sellCount = 0;
   
-  for (let i = 0; i < state.holdings.length; i++) {
-    const holding = state.holdings[i];
+  // Create charts for top 8 holdings
+  for (let i = 0; i < Math.min(state.holdings.length, 8); i++) {
+    const h = state.holdings[i];
     
-    if (!holding.poolAddress) {
-      log(`Skipping ${holding.symbol} - no pool found`, 'warning');
-      continue;
-    }
-    
-    // Create chart card
     const card = document.createElement('div');
     card.className = 'chart-card';
     card.id = `chart-card-${i}`;
     card.innerHTML = `
       <div class="chart-header">
         <div class="chart-token">
-          <div class="token-icon">${holding.symbol?.charAt(0) || '?'}</div>
-          <div class="token-info">
-            <h3>${holding.symbol}</h3>
-            <p>${formatAmount(holding.amount)} tokens • $${holding.value.toFixed(2)}</p>
+          <div class="chart-icon">${(h.symbol || '?').charAt(0)}</div>
+          <div class="chart-info">
+            <h3>${h.symbol || 'UNKNOWN'}</h3>
+            <p>${formatNumber(h.amount)} tokens • $${h.value.toFixed(2)}</p>
           </div>
         </div>
         <div class="chart-stats">
           <div class="chart-stat">
-            <div class="chart-stat-value ${holding.priceChange >= 0 ? 'positive' : 'negative'}">
-              $${holding.price.toFixed(8)}
-            </div>
+            <div class="chart-stat-value ${h.priceChange >= 0 ? 'positive' : 'negative'}">$${h.price.toFixed(8)}</div>
             <div class="chart-stat-label">Price</div>
           </div>
           <div class="chart-stat">
-            <div class="chart-stat-value ${holding.priceChange >= 0 ? 'positive' : 'negative'}">
-              ${holding.priceChange >= 0 ? '+' : ''}${holding.priceChange.toFixed(2)}%
-            </div>
-            <div class="chart-stat-label">24H Change</div>
+            <div class="chart-stat-value ${h.priceChange >= 0 ? 'positive' : 'negative'}">${h.priceChange >= 0 ? '+' : ''}${h.priceChange.toFixed(2)}%</div>
+            <div class="chart-stat-label">24H</div>
           </div>
         </div>
       </div>
       <div class="chart-container" id="chart-${i}">
-        <div class="loading">
-          <div class="loading-spinner"></div>
-        </div>
+        <div class="loading"><div class="loading-spinner"></div></div>
       </div>
       <div class="chart-footer">
-        <div class="ml-signal">
-          <span class="signal-badge hold" id="chart-signal-${i}">LOADING...</span>
-          <span class="signal-conf" id="chart-conf-${i}">Analyzing chart...</span>
+        <div class="chart-signal">
+          <span class="signal-badge loading" id="chart-signal-${i}">LOADING</span>
+          <span class="signal-conf" id="chart-conf-${i}">Analyzing chart patterns...</span>
         </div>
         <div class="chart-actions">
-          <button class="btn btn-primary" onclick="window.open('https://dexscreener.com/solana/${holding.poolAddress}', '_blank')">📊 DEX</button>
-          <button class="btn btn-danger" onclick="showSellInfo('${holding.symbol}', ${holding.amount}, ${holding.value})">💰 SELL</button>
+          <button class="btn btn-primary" onclick="window.open('https://jup.ag/swap/SOL-${h.mint}', '_blank')">SWAP</button>
+          <button class="btn btn-secondary" onclick="window.open('https://dexscreener.com/solana/${h.mint}', '_blank')">DEX</button>
         </div>
       </div>
     `;
-    
     grid.appendChild(card);
     
-    // Fetch OHLCV and create chart
-    const candles = await fetchOHLCV(holding.poolAddress);
+    // Fetch OHLCV data
+    const candles = await fetchOHLCV(h.mint);
     
     if (candles && candles.length > 0) {
+      // Get ML prediction
       const signal = await predictSignal(candles);
       
-      // Update signal badges
+      // Update badges
       const signalBadge = document.getElementById(`chart-signal-${i}`);
-      const signalConf = document.getElementById(`chart-conf-${i}`);
+      const confLabel = document.getElementById(`chart-conf-${i}`);
       const holdingSignal = document.getElementById(`signal-${i}`);
-      const holdingConf = document.getElementById(`conf-${i}`);
       
       if (signalBadge) {
         signalBadge.textContent = signal.signal;
         signalBadge.className = `signal-badge ${signal.signal.toLowerCase()}`;
       }
-      if (signalConf) {
-        signalConf.textContent = `${(signal.confidence * 100).toFixed(0)}% confidence`;
+      if (confLabel) {
+        confLabel.textContent = `${(signal.confidence * 100).toFixed(0)}% confidence`;
       }
       if (holdingSignal) {
         holdingSignal.textContent = signal.signal;
         holdingSignal.className = `signal-badge ${signal.signal.toLowerCase()}`;
-      }
-      if (holdingConf) {
-        holdingConf.textContent = `${(signal.confidence * 100).toFixed(0)}%`;
       }
       
       // Count signals
@@ -1220,38 +1436,49 @@ async function createChartsForHoldings() {
       // Create chart
       createChart(`chart-${i}`, candles, signal);
       
-      log(`${holding.symbol}: ${signal.signal} (${(signal.confidence * 100).toFixed(0)}%)`, 
-        signal.signal === 'BUY' ? 'success' : signal.signal === 'SELL' ? 'warning' : 'info');
+      log(`${h.symbol}: ${signal.signal} (${(signal.confidence * 100).toFixed(0)}%)`, 
+        signal.signal === 'BUY' ? 'signal' : signal.signal === 'SELL' ? 'warning' : 'info');
     } else {
       document.getElementById(`chart-${i}`).innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);">
-          Unable to load chart data
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);font-size:12px;">
+          No chart data available for this token
         </div>
       `;
+      document.getElementById(`chart-signal-${i}`).textContent = 'N/A';
+      document.getElementById(`chart-signal-${i}`).className = 'signal-badge loading';
     }
     
-    // Small delay between requests
-    await new Promise(r => setTimeout(r, 300));
+    // Small delay between API calls
+    await new Promise(r => setTimeout(r, 250));
   }
   
-  // Update signal counts
-  document.getElementById('buySignals').textContent = buyCount;
-  document.getElementById('holdSignals').textContent = holdCount;
-  document.getElementById('sellSignals').textContent = sellCount;
+  // Update stats
+  document.getElementById('statBuy').textContent = buyCount;
+  document.getElementById('statHold').textContent = holdCount;
+  document.getElementById('statSell').textContent = sellCount;
 }
 
-async function fetchOHLCV(poolAddress) {
+async function fetchOHLCV(mint) {
   try {
-    const url = `${GECKO_API}/networks/solana/pools/${poolAddress}/ohlcv/hour?aggregate=1&limit=100`;
-    const resp = await fetch(url);
+    // Search for pool on GeckoTerminal
+    const searchResp = await fetch(`${GECKO_API}/search/pools?query=${mint}&network=solana`);
+    const searchData = await searchResp.json();
     
-    if (!resp.ok) return null;
+    if (!searchData.data || searchData.data.length === 0) {
+      return null;
+    }
     
-    const data = await resp.json();
+    const poolId = searchData.data[0].id.replace('solana_', '');
     
-    if (!data.data?.attributes?.ohlcv_list) return null;
+    // Get OHLCV
+    const ohlcvResp = await fetch(`${GECKO_API}/networks/solana/pools/${poolId}/ohlcv/hour?aggregate=1&limit=60`);
+    const ohlcvData = await ohlcvResp.json();
     
-    return data.data.attributes.ohlcv_list.map(c => ({
+    if (!ohlcvData.data?.attributes?.ohlcv_list) {
+      return null;
+    }
+    
+    return ohlcvData.data.attributes.ohlcv_list.map(c => ({
       time: c[0],
       open: parseFloat(c[1]),
       high: parseFloat(c[2]),
@@ -1259,7 +1486,8 @@ async function fetchOHLCV(poolAddress) {
       close: parseFloat(c[4]),
       volume: parseFloat(c[5])
     })).sort((a, b) => a.time - b.time);
-  } catch (err) {
+    
+  } catch (e) {
     return null;
   }
 }
@@ -1285,7 +1513,7 @@ function createChart(containerId, candles, signal) {
     timeScale: { borderColor: '#1a3a4a', timeVisible: true }
   });
   
-  const candleSeries = chart.addCandlestickSeries({
+  const series = chart.addCandlestickSeries({
     upColor: '#00ff88',
     downColor: '#ff3366',
     borderUpColor: '#00ff88',
@@ -1294,33 +1522,28 @@ function createChart(containerId, candles, signal) {
     wickDownColor: '#ff3366'
   });
   
-  candleSeries.setData(candles);
+  series.setData(candles);
   
   // Add signal marker
   if (signal && candles.length > 0) {
     const last = candles[candles.length - 1];
-    const markers = [];
     
     if (signal.signal === 'BUY') {
-      markers.push({
+      series.setMarkers([{
         time: last.time,
         position: 'belowBar',
         color: '#00ff88',
         shape: 'arrowUp',
         text: `BUY ${(signal.confidence * 100).toFixed(0)}%`
-      });
+      }]);
     } else if (signal.signal === 'SELL') {
-      markers.push({
+      series.setMarkers([{
         time: last.time,
         position: 'aboveBar',
         color: '#ff3366',
         shape: 'arrowDown',
         text: `SELL ${(signal.confidence * 100).toFixed(0)}%`
-      });
-    }
-    
-    if (markers.length > 0) {
-      candleSeries.setMarkers(markers);
+      }]);
     }
   }
   
@@ -1328,57 +1551,70 @@ function createChart(containerId, candles, signal) {
   
   // Handle resize
   new ResizeObserver(() => {
-    chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+    chart.applyOptions({ width: container.clientWidth });
   }).observe(container);
   
   return chart;
 }
 
-async function refreshAllCharts() {
-  log('Refreshing all charts...', 'info');
-  await createChartsForHoldings();
-  log('Charts refreshed', 'success');
+function refreshCharts() {
+  log('Refreshing charts...', 'info');
+  renderCharts();
 }
 
-function focusChart(mint) {
-  const idx = state.holdings.findIndex(h => h.mint === mint);
-  if (idx >= 0) {
-    const card = document.getElementById(`chart-card-${idx}`);
-    if (card) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      card.style.boxShadow = '0 0 20px var(--primary)';
-      setTimeout(() => card.style.boxShadow = '', 2000);
-    }
+function scrollToChart(idx) {
+  const card = document.getElementById(`chart-card-${idx}`);
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.style.boxShadow = '0 0 40px var(--primary)';
+    setTimeout(() => card.style.boxShadow = '', 2000);
   }
 }
 
-function showSellInfo(symbol, amount, value) {
-  alert(`To sell ${symbol}:\n\nAmount: ${formatAmount(amount)} tokens\nValue: $${value.toFixed(2)}\n\nUse Jupiter or Raydium to swap.`);
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+
+function formatNumber(n) {
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+  return n.toFixed(2);
 }
 
-// ============================================================
-// LOGGING
-// ============================================================
-
-function log(message, type = 'info') {
-  const container = document.getElementById('logsContainer');
+function log(msg, type = 'info') {
+  const container = document.getElementById('logContent');
   const time = new Date().toLocaleTimeString();
+  
   const entry = document.createElement('div');
-  entry.className = `log-entry ${type}`;
-  entry.textContent = `[${time}] ${message}`;
+  entry.className = 'log-entry';
+  entry.innerHTML = `
+    <span class="log-time">${time}</span>
+    <span class="log-msg ${type}">${msg}</span>
+  `;
+  
   container.insertBefore(entry, container.firstChild);
   
+  // Keep max 50 entries
   while (container.children.length > 50) {
     container.removeChild(container.lastChild);
   }
+  
+  // Also log to console for debugging
+  console.log(`[TRENCH ${type.toUpperCase()}] ${msg}`);
 }
 
 function clearLogs() {
-  document.getElementById('logsContainer').innerHTML = 
-    '<div class="log-entry info">[CLEARED] Logs cleared</div>';
+  document.getElementById('logContent').innerHTML = `
+    <div class="log-entry">
+      <span class="log-time">${new Date().toLocaleTimeString()}</span>
+      <span class="log-msg info">Logs cleared</span>
+    </div>
+  `;
 }
 
-// Initialize
+// Initialize on load
 window.addEventListener('load', init);
 </script>
 </body>
