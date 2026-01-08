@@ -470,12 +470,13 @@
             document.getElementById('tokenCount').textContent = state.availableTokens.length;
             document.getElementById('positionCount').textContent = state.positions.length;
 
-            // Update tokens list
+            // Update tokens list - show top 100 instead of 20
             const tokensList = document.getElementById('tokensList');
             if (state.availableTokens.length === 0) {
                 tokensList.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No tokens scanned</p>';
             } else {
-                tokensList.innerHTML = state.availableTokens.slice(0, 20).map(token => `
+                const displayCount = Math.min(100, state.availableTokens.length);
+                tokensList.innerHTML = state.availableTokens.slice(0, displayCount).map(token => `
                     <div class="token-item">
                         <div class="token-header">
                             <span class="token-symbol">${token.symbol}</span>
@@ -489,6 +490,10 @@
                         </div>
                     </div>
                 `).join('');
+                
+                if (state.availableTokens.length > displayCount) {
+                    tokensList.innerHTML += `<p style="color: #888; text-align: center; padding: 20px;">Showing top ${displayCount} of ${state.availableTokens.length} tokens</p>`;
+                }
             }
         }
 
@@ -635,7 +640,7 @@
 
                 updateUI();
 
-                // Analyze ALL tokens
+                // Analyze ALL tokens with progress updates
                 addLog(`🔬 Analyzing ${tokens.length} tokens...`, 'info');
                 
                 for (let i = 0; i < tokens.length; i++) {
@@ -644,15 +649,16 @@
                     // Progress update every 50 tokens
                     if ((i + 1) % 50 === 0) {
                         addLog(`📊 Progress: ${i + 1}/${tokens.length} tokens analyzed`, 'info');
+                        updateUI(); // Update UI to show progress
                     }
                     
-                    // Small delay to prevent UI freezing
-                    if (i % 10 === 0) {
-                        await new Promise(r => setTimeout(r, 100));
+                    // Very small delay every 20 tokens to prevent freezing
+                    if (i % 20 === 0) {
+                        await new Promise(r => setTimeout(r, 50));
                     }
                 }
 
-                addLog('✅ Scan complete!', 'success');
+                addLog(`✅ Scan complete! Analyzed ${tokens.length} tokens`, 'success');
                 updateUI();
 
             } catch (err) {
