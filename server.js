@@ -28,18 +28,18 @@ app.get('/', (req, res) => {
 // ===== TOKEN LISTING WITH MULTI-SOURCE AGGREGATION =====
 app.get('/api/coins', async (req, res) => {
   try {
-    console.log('📊 Fetching tokens from MULTIPLE sources...');
+    console.log('ðŸ“Š Fetching tokens from MULTIPLE sources...');
     
     const allTokens = [];
     const seenMints = new Set();
     
-    // ===== SOURCE 1: BIRDEYE (TOP 50 BY VOLUME) =====
+    // ===== SOURCE 1: BIRDEYE (TOP 1000 BY VOLUME - PAID PLAN) =====
     const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY;
     if (BIRDEYE_API_KEY) {
       try {
-        console.log('🐦 Fetching from Birdeye...');
+        console.log('ðŸ¦ Fetching from Birdeye PRO (1000 tokens)...');
         const birdeyeResponse = await fetch(
-          'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=50',
+          'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=1000',
           {
             headers: {
               'X-API-KEY': BIRDEYE_API_KEY,
@@ -70,17 +70,17 @@ app.get('/api/coins', async (req, res) => {
                 allTokens.push(t);
               }
             });
-            console.log(`✅ Birdeye: ${tokens.length} tokens`);
+            console.log(`âœ… Birdeye PRO: ${tokens.length} tokens (PAID PLAN)`);
           }
         }
       } catch (e) {
-        console.log('❌ Birdeye failed:', e.message);
+        console.log('âŒ Birdeye failed:', e.message);
       }
     }
     
     // ===== SOURCE 2: DEXSCREENER (TOP 100 TRENDING) =====
     try {
-      console.log('📊 Fetching from DexScreener...');
+      console.log('ðŸ“Š Fetching from DexScreener...');
       const dexResponse = await fetch('https://api.dexscreener.com/latest/dex/tokens/solana/trending');
       
       if (dexResponse.ok) {
@@ -105,16 +105,16 @@ app.get('/api/coins', async (req, res) => {
               allTokens.push(t);
             }
           });
-          console.log(`✅ DexScreener: ${tokens.length} tokens`);
+          console.log(`âœ… DexScreener: ${tokens.length} tokens`);
         }
       }
     } catch (e) {
-      console.log('❌ DexScreener failed:', e.message);
+      console.log('âŒ DexScreener failed:', e.message);
     }
     
     // ===== SOURCE 3: GECKOTERMINAL (TOP 50 TRENDING) =====
     try {
-      console.log('🦎 Fetching from GeckoTerminal...');
+      console.log('ðŸ¦Ž Fetching from GeckoTerminal...');
       const geckoResponse = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/trending_pools');
       
       if (geckoResponse.ok) {
@@ -142,16 +142,16 @@ app.get('/api/coins', async (req, res) => {
               allTokens.push(t);
             }
           });
-          console.log(`✅ GeckoTerminal: ${tokens.length} tokens`);
+          console.log(`âœ… GeckoTerminal: ${tokens.length} tokens`);
         }
       }
     } catch (e) {
-      console.log('❌ GeckoTerminal failed:', e.message);
+      console.log('âŒ GeckoTerminal failed:', e.message);
     }
     
     // ===== SOURCE 4: PUMPFUN (NEWEST 50) =====
     try {
-      console.log('🎪 Fetching from PumpFun...');
+      console.log('ðŸŽª Fetching from PumpFun...');
       const pumpUrl = 'https://frontend-api.pump.fun/coins?limit=50&sort=created_timestamp&order=DESC&includeNsfw=false';
       
       const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
@@ -185,16 +185,16 @@ app.get('/api/coins', async (req, res) => {
               allTokens.push(t);
             }
           });
-          console.log(`✅ PumpFun: ${tokens.length} tokens`);
+          console.log(`âœ… PumpFun: ${tokens.length} tokens`);
         }
       }
     } catch (e) {
-      console.log('❌ PumpFun failed:', e.message);
+      console.log('âŒ PumpFun failed:', e.message);
     }
     
     // ===== RESULTS =====
-    console.log(`\n🎉 TOTAL UNIQUE TOKENS: ${allTokens.length}`);
-    console.log(`📊 Sources: Birdeye, DexScreener, GeckoTerminal, PumpFun\n`);
+    console.log(`\nðŸŽ‰ TOTAL UNIQUE TOKENS: ${allTokens.length}`);
+    console.log(`ðŸ“Š Sources: Birdeye, DexScreener, GeckoTerminal, PumpFun\n`);
     
     if (allTokens.length === 0) {
       throw new Error('All data sources failed - no tokens retrieved');
@@ -203,7 +203,7 @@ app.get('/api/coins', async (req, res) => {
     res.json(allTokens);
     
   } catch (error) {
-    console.error('❌ Token fetch error:', error);
+    console.error('âŒ Token fetch error:', error);
     res.status(500).json({ 
       error: error.message,
       suggestion: 'Multi-source fetch failed. Check API availability.'
@@ -216,7 +216,7 @@ app.post('/api/jupiter/quote', async (req, res) => {
   try {
     const { inputMint, outputMint, amount, slippageBps } = req.body;
     
-    console.log('📊 Jupiter Quote Request:', {
+    console.log('ðŸ“Š Jupiter Quote Request:', {
       inputMint: inputMint?.slice(0, 8) + '...',
       outputMint: outputMint?.slice(0, 8) + '...',
       amount,
@@ -245,7 +245,7 @@ app.post('/api/jupiter/quote', async (req, res) => {
     
     const data = await response.json();
     
-    console.log('✅ Jupiter Quote Success:', {
+    console.log('âœ… Jupiter Quote Success:', {
       outAmount: data.outAmount,
       priceImpact: data.priceImpactPct
     });
@@ -253,7 +253,7 @@ app.post('/api/jupiter/quote', async (req, res) => {
     res.json(data);
     
   } catch (error) {
-    console.error('❌ Jupiter quote error:', error);
+    console.error('âŒ Jupiter quote error:', error);
     res.status(500).json({ 
       error: error.message,
       details: 'Failed to get Jupiter quote'
@@ -266,7 +266,7 @@ app.post('/api/jupiter/swap', async (req, res) => {
   try {
     const { quoteResponse, userPublicKey } = req.body;
     
-    console.log('🔄 Jupiter Swap Request:', {
+    console.log('ðŸ”„ Jupiter Swap Request:', {
       userPublicKey: userPublicKey?.slice(0, 8) + '...',
       inAmount: quoteResponse?.inAmount,
       outAmount: quoteResponse?.outAmount
@@ -296,14 +296,14 @@ app.post('/api/jupiter/swap', async (req, res) => {
     
     const data = await response.json();
     
-    console.log('✅ Jupiter Swap Success:', {
+    console.log('âœ… Jupiter Swap Success:', {
       hasTransaction: !!data.swapTransaction
     });
     
     res.json(data);
     
   } catch (error) {
-    console.error('❌ Jupiter swap error:', error);
+    console.error('âŒ Jupiter swap error:', error);
     res.status(500).json({ 
       error: error.message,
       details: 'Failed to get swap transaction'
@@ -317,7 +317,7 @@ app.get('/api/price-history/:mint', async (req, res) => {
     const { mint } = req.params;
     const { interval, limit } = req.query;
     
-    console.log('📈 Price History Request:', { mint: mint.slice(0, 8) + '...', interval, limit });
+    console.log('ðŸ“ˆ Price History Request:', { mint: mint.slice(0, 8) + '...', interval, limit });
     
     // Fetch from DexScreener
     const response = await fetch(
@@ -355,7 +355,7 @@ app.get('/api/price-history/:mint', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Price history error:', error);
+    console.error('âŒ Price history error:', error);
     res.status(500).json({ 
       error: error.message,
       candles: [] 
@@ -366,10 +366,10 @@ app.get('/api/price-history/:mint', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log('');
-  console.log('🚀 MCHP Backend Server Started!');
+  console.log('ðŸš€ MCHP Backend Server Started!');
   console.log('================================');
-  console.log(`📡 Port: ${PORT}`);
-  console.log(`🌐 Endpoints:`);
+  console.log(`ðŸ“¡ Port: ${PORT}`);
+  console.log(`ðŸŒ Endpoints:`);
   console.log(`   GET  /api/coins`);
   console.log(`   POST /api/jupiter/quote`);
   console.log(`   POST /api/jupiter/swap`);
