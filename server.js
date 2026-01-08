@@ -73,8 +73,14 @@ app.get('/api/coins', async (req, res) => {
             console.log(`✅ Birdeye PRO: ${tokens.length} tokens (PAID PLAN)`);
           }
         }
+        } else {
+          console.log(`❌ Birdeye failed: HTTP ${birdeyeResponse.status} - ${birdeyeResponse.statusText}`);
+          const errorText = await birdeyeResponse.text();
+          console.log(`❌ Birdeye error response: ${errorText.substring(0, 200)}`);
+        }
       } catch (e) {
         console.log('❌ Birdeye failed:', e.message);
+        console.log('❌ Birdeye error details:', e.toString());
       }
     }
     
@@ -107,9 +113,13 @@ app.get('/api/coins', async (req, res) => {
           });
           console.log(`✅ DexScreener: ${tokens.length} tokens`);
         }
+        } else {
+          console.log(`❌ DexScreener failed: HTTP ${dexResponse.status} - ${dexResponse.statusText}`);
+        }
       }
     } catch (e) {
       console.log('❌ DexScreener failed:', e.message);
+      console.log('❌ DexScreener error details:', e.toString());
     }
     
     // ===== SOURCE 3: GECKOTERMINAL (TOP 50 TRENDING) =====
@@ -144,9 +154,13 @@ app.get('/api/coins', async (req, res) => {
           });
           console.log(`✅ GeckoTerminal: ${tokens.length} tokens`);
         }
+        } else {
+          console.log(`❌ GeckoTerminal failed: HTTP ${geckoResponse.status} - ${geckoResponse.statusText}`);
+        }
       }
     } catch (e) {
       console.log('❌ GeckoTerminal failed:', e.message);
+      console.log('❌ GeckoTerminal error details:', e.toString());
     }
     
     // ===== SOURCE 4: PUMPFUN (NEWEST 50) =====
@@ -187,9 +201,13 @@ app.get('/api/coins', async (req, res) => {
           });
           console.log(`✅ PumpFun: ${tokens.length} tokens`);
         }
+        } else {
+          console.log(`❌ PumpFun failed: HTTP ${pumpResponse.status} - ${pumpResponse.statusText}`);
+        }
       }
     } catch (e) {
       console.log('❌ PumpFun failed:', e.message);
+      console.log('❌ PumpFun error details:', e.toString());
     }
     
     // ===== RESULTS =====
@@ -363,6 +381,165 @@ app.get('/api/price-history/:mint', async (req, res) => {
   }
 });
 
+// ===== DEBUG/TEST ENDPOINT =====
+app.get('/api/test', async (req, res) => {
+  const results = {
+    timestamp: new Date().toISOString(),
+    tests: {}
+  };
+
+  // Test Birdeye
+  const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY;
+  try {
+    console.log('🧪 Testing Birdeye API...');
+    const start = Date.now();
+    const response = await fetch(
+      'https://public-api.birdeye.so/defi/tokenlist?sort_by=v24hUSD&sort_type=desc&offset=0&limit=10',
+      {
+        headers: {
+          'X-API-KEY': BIRDEYE_API_KEY,
+          'Accept': 'application/json'
+        }
+      }
+    );
+    const duration = Date.now() - start;
+    
+    if (response.ok) {
+      const data = await response.json();
+      results.tests.birdeye = {
+        status: 'SUCCESS',
+        httpStatus: response.status,
+        tokenCount: data?.data?.tokens?.length || 0,
+        duration: `${duration}ms`,
+        apiKeySet: !!BIRDEYE_API_KEY
+      };
+    } else {
+      const errorText = await response.text();
+      results.tests.birdeye = {
+        status: 'FAILED',
+        httpStatus: response.status,
+        statusText: response.statusText,
+        error: errorText.substring(0, 200),
+        duration: `${duration}ms`,
+        apiKeySet: !!BIRDEYE_API_KEY
+      };
+    }
+  } catch (e) {
+    results.tests.birdeye = {
+      status: 'ERROR',
+      error: e.message,
+      details: e.toString(),
+      apiKeySet: !!BIRDEYE_API_KEY
+    };
+  }
+
+  // Test DexScreener
+  try {
+    console.log('🧪 Testing DexScreener API...');
+    const start = Date.now();
+    const response = await fetch('https://api.dexscreener.com/latest/dex/search?q=SOL');
+    const duration = Date.now() - start;
+    
+    if (response.ok) {
+      const data = await response.json();
+      results.tests.dexscreener = {
+        status: 'SUCCESS',
+        httpStatus: response.status,
+        pairCount: data?.pairs?.length || 0,
+        duration: `${duration}ms`
+      };
+    } else {
+      results.tests.dexscreener = {
+        status: 'FAILED',
+        httpStatus: response.status,
+        statusText: response.statusText,
+        duration: `${duration}ms`
+      };
+    }
+  } catch (e) {
+    results.tests.dexscreener = {
+      status: 'ERROR',
+      error: e.message,
+      details: e.toString()
+    };
+  }
+
+  // Test GeckoTerminal
+  try {
+    console.log('🧪 Testing GeckoTerminal API...');
+    const start = Date.now();
+    const response = await fetch('https://api.geckoterminal.com/api/v2/networks/solana/trending_pools');
+    const duration = Date.now() - start;
+    
+    if (response.ok) {
+      const data = await response.json();
+      results.tests.geckoterminal = {
+        status: 'SUCCESS',
+        httpStatus: response.status,
+        poolCount: data?.data?.length || 0,
+        duration: `${duration}ms`
+      };
+    } else {
+      results.tests.geckoterminal = {
+        status: 'FAILED',
+        httpStatus: response.status,
+        statusText: response.statusText,
+        duration: `${duration}ms`
+      };
+    }
+  } catch (e) {
+    results.tests.geckoterminal = {
+      status: 'ERROR',
+      error: e.message,
+      details: e.toString()
+    };
+  }
+
+  // Test PumpFun
+  const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
+  try {
+    console.log('🧪 Testing PumpFun API...');
+    const pumpUrl = 'https://frontend-api.pump.fun/coins?limit=10';
+    const fetchUrl = SCRAPER_API_KEY 
+      ? `http://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&url=${encodeURIComponent(pumpUrl)}`
+      : pumpUrl;
+    
+    const start = Date.now();
+    const response = await fetch(fetchUrl, {
+      headers: { 'Accept': 'application/json' }
+    });
+    const duration = Date.now() - start;
+    
+    if (response.ok) {
+      const data = await response.json();
+      results.tests.pumpfun = {
+        status: 'SUCCESS',
+        httpStatus: response.status,
+        tokenCount: Array.isArray(data) ? data.length : 0,
+        duration: `${duration}ms`,
+        scraperApiUsed: !!SCRAPER_API_KEY
+      };
+    } else {
+      results.tests.pumpfun = {
+        status: 'FAILED',
+        httpStatus: response.status,
+        statusText: response.statusText,
+        duration: `${duration}ms`,
+        scraperApiUsed: !!SCRAPER_API_KEY
+      };
+    }
+  } catch (e) {
+    results.tests.pumpfun = {
+      status: 'ERROR',
+      error: e.message,
+      details: e.toString(),
+      scraperApiUsed: !!SCRAPER_API_KEY
+    };
+  }
+
+  res.json(results);
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log('');
@@ -371,6 +548,7 @@ app.listen(PORT, () => {
   console.log(`📡 Port: ${PORT}`);
   console.log(`🌐 Endpoints:`);
   console.log(`   GET  /api/coins`);
+  console.log(`   GET  /api/test (DEBUG)`);
   console.log(`   POST /api/jupiter/quote`);
   console.log(`   POST /api/jupiter/swap`);
   console.log(`   GET  /api/price-history/:mint`);
