@@ -635,10 +635,21 @@
 
                 updateUI();
 
-                // Simple analysis (just for demo on mobile)
-                for (const token of tokens.slice(0, 10)) {
-                    await analyzeToken(token);
-                    await new Promise(r => setTimeout(r, 500));
+                // Analyze ALL tokens
+                addLog(`🔬 Analyzing ${tokens.length} tokens...`, 'info');
+                
+                for (let i = 0; i < tokens.length; i++) {
+                    await analyzeToken(tokens[i]);
+                    
+                    // Progress update every 50 tokens
+                    if ((i + 1) % 50 === 0) {
+                        addLog(`📊 Progress: ${i + 1}/${tokens.length} tokens analyzed`, 'info');
+                    }
+                    
+                    // Small delay to prevent UI freezing
+                    if (i % 10 === 0) {
+                        await new Promise(r => setTimeout(r, 100));
+                    }
                 }
 
                 addLog('✅ Scan complete!', 'success');
